@@ -30,6 +30,12 @@ Závislosti originálu na MZ-700 a jejich náhrady:
 | smyčky zpoždění pro 3,5 MHz | snímek 60,8 ms | VBI CGA-1V (60 Hz) nebo čítač 82C54 na MPH-1V |
 | ORG 1200h, zásobník pod 1200h | | CP/M `.COM` od 0100h. Během hry je mapování MAP zapnuté, takže BDOS se nevolá. Návrat do CP/M `OUT 63h,00h` a `JP 0` |
 
+## Potřebné podklady
+
+- **Znakový generátor MZ-700** (CGROM, 4 KB, 8×8 bodů na znak). BomberNet ho čte z
+  `~/src/mz-catalog/tools/mzfont/cgrom.bin`. Na tomto PC není, uložit do `orig/cgrom.bin`. Glyfy ZX v BomberNet
+  jsou zúžené na 6 bodů, pro CGA (8 bodů) se nehodí.
+
 ## Postup
 
 1. `sapi/bomber_sapi.asm` = `orig/bomber.asm` s ORG 0100h, data snímku RAM → `defs`, platformní vrstva
