@@ -45,10 +45,10 @@ DELAY_UNITS:	equ 159             ; MZ delay: 5000h x 26 T = 150 ms
 ; Game frame: 60.8 ms on the MZ-700 (BomberNet docs/port-zx-spectrum.md),
 ; counter 2 in mode 2 sets F2 every 3400 clocks.
 FRAME_DIV:	equ 3400
-; A Consul key press counts as held for the next 4 frames (frame_wait
-; ages it once before the first one). The player steps every second
-; frame (tmr_player_anim), so one press = 2 steps = one cell.
+; A Consul key press other than a cursor key (space) counts as held for
+; the next 4 frames (frame_wait ages it once before the first one).
 KEY_HOLD:	equ 5
+; A cursor key press moves the player to the next whole cell (see key_dir).
 
 ; Tone: the MZ-700 8253 counter 0 runs at 1.1088 MHz (PAL models), the
 ; tone is 1108800 / RATIO Hz. YM3812 F-number = K / (RATIO << block)
@@ -119,6 +119,9 @@ plat_init:
 	xor a
 	ld (key_code),a
 	ld (key_left),a
+	ld (kdir_code),a
+	ld (kdir_fresh),a
+	ld (kdir_more),a
 	ret
 
 ; YM3812 channel 0: modulator (slot 0) with feedback for a buzzy tone,
@@ -307,8 +310,9 @@ frame_wait:
 	ret
 
 ; ---- poll_key
-; Catch a Consul key press (STROBE is a 1 ms pulse, not latched): the
-; code counts as held for KEY_HOLD frames. ESC or BREAK ends the game.
+; Catch a Consul key press (STROBE is a 1 ms pulse, not latched). A
+; cursor key starts a move for key_dir, any other code counts as held
+; for KEY_HOLD frames. ESC or BREAK ends the game.
 poll_key:
 	in a,(KSTB)
 	rrca
@@ -322,15 +326,60 @@ poll_key:
 	jp z,plat_exit
 	in a,(KDATA)
 	cpl
+	cp 0C1h                     ; C1 up, C2 down, C3 right, C4 left
+	jr c,.pk_other
+	cp 0C5h
+	jr nc,.pk_other
+	push hl
+	push de
+	sub 0C1h
+	ld l,a
+	ld h,0
+	ld de,.pk_map
+	add hl,de
+	ld a,(hl)
+	ld hl,kdir_code
+	cp (hl)
+	jr nz,.pk_new
+	inc hl                      ; the same key while it moves: one more
+	ld a,(hl)                   ; cell after this one
+	or a                        ; (not while the first step is not taken:
+	jr nz,.pk_done              ; the 1 ms STROBE pulse is read many times)
+	ld a,1
+	ld (kdir_more),a
+	jr .pk_done
+.pk_new:
+	ld (hl),a                   ; kdir_code
+	ld a,1
+	ld (kdir_fresh),a
+	xor a
+	ld (kdir_more),a
+	ld a,2
+	ld (kdir_cont),a
+.pk_done:
+	pop de
+	pop hl
+	ret
+.pk_other:
 	ld (key_code),a
 	ld a,KEY_HOLD
 	ld (key_left),a
 	ret
+.pk_map:
+	defb 012h,011h,013h,014h    ; MZ codes: up, down, right, left
 
 key_code:
 	defb 0
 key_left:
 	defb 0
+kdir_code:
+	defb 0                      ; MZ cursor code of the move, 0 = none
+kdir_fresh:
+	defb 0                      ; 1 = pressed, the first step not taken
+kdir_cont:
+	defb 0                      ; steps left to finish the cell
+kdir_more:
+	defb 0                      ; 1 = pressed again: one more cell
 
 ; ---- key_fire
 ; A = 20h (MZ space) when the joystick fire or the space key is held,
@@ -367,27 +416,49 @@ key_dir:
 	and 008h
 	ld a,014h
 	ret z                       ; D3 left
-	call held_key
-	cp 0C1h
-	jr c,.kd_none
-	cp 0C5h
-	jr nc,.kd_none
-	push hl                     ; C1 up, C2 down, C3 right, C4 left
-	push de
-	sub 0C1h
-	ld l,a
-	ld h,0
-	ld de,.kd_map
-	add hl,de
+	push hl                     ; Consul cursor key: one step, then on
+	ld hl,kdir_code             ; to a whole cell (the player is on one
+	ld a,(hl)                   ; when its coordinate on the axis of the
+	or a                        ; move is odd)
+	jr z,.kd_end
+	inc hl
+	ld a,(hl)                   ; kdir_fresh
+	or a
+	jr z,.kd_cont
+	ld (hl),0
+	jr .kd_go
+.kd_cont:
+	inc hl
+	ld a,(hl)                   ; kdir_cont: at most 2 steps (a wall)
+	or a
+	jr z,.kd_stop
+	dec (hl)
+	ld a,(kdir_code)
+	cp 013h
+	ld a,(player_y)             ; down, up: Y
+	jr c,.kd_axis
+	ld a,(player_x)             ; right, left: X
+.kd_axis:
+	rrca
+	jr nc,.kd_go                ; even: half way
+	ld hl,kdir_more             ; odd: on a whole cell, another one?
 	ld a,(hl)
-	pop de
+	or a
+	jr z,.kd_stop
+	ld (hl),0
+	ld a,2
+	ld (kdir_cont),a
+.kd_go:
+	ld a,(kdir_code)
 	pop hl
 	ret
-.kd_none:
+.kd_stop:
+	xor a
+	ld (kdir_code),a
+.kd_end:
+	pop hl
 	xor a
 	ret
-.kd_map:
-	defb 012h,011h,013h,014h
 
 ; ---- held_key
 ; A = the Consul code still held (KEY_HOLD frames after the press), or 0.

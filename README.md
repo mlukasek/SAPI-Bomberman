@@ -65,8 +65,13 @@ V SAPIemu: joystick z gamepadu, nebo šipky a mezerník jako joystick (Ctrl+F8).
 | ORG 1200h, zásobník pod programem | CP/M `.COM` od 0100h, vlastní zásobník za programem. Během hry je CGA namapovaná přes RAM C000–FFFF, BDOS se nevolá |
 
 - **Klávesnice Consul 262.3** posílá STROBE jen jako pulz 1 ms a nemá autorepeat. Program ji čte ve všech
-  čekacích smyčkách (`poll_key`) a stisk bere jako držený 4 snímky. Hráč se hýbe každý druhý snímek, takže jeden
-  stisk = jedno políčko.
+  čekacích smyčkách (`poll_key`).
+  - **Šipka** udělá krok a pak pokračuje, dokud hráč nestojí na celém políčku. Na celém políčku je souřadnice
+    v ose pohybu lichá. Jeden stisk = jedno políčko. Stojí-li hráč v půlce políčka (po joysticku), stisk ho
+    dorovná. Stisk téže šipky během pohybu přidá jedno políčko, takže autorepeat PC v emulátoru dává plynulý pohyb.
+  - **Mezerník** se bere jako držený 4 snímky.
+  - Dřív se i šipka brala jako držená 4 snímky. Když přišel další stisk dřív, než doběhly (rychlé ťukání,
+    autorepeat), mohl hráč zůstat v půlce políčka a nemohl zatočit (autor, 2026-10-05).
 - **Pohyb a bomba zároveň:** originál volá `GETKY` zvlášť pro pohyb a pro bombu a dostane jednu klávesu. Port
   čte palbu a páku zvlášť, takže s joystickem jde chodit a pokládat bomby zároveň.
 - **Zrychlení:** `composite_map` (překrytí mapy přes buffer) a `flush_screen` (porovnání s obrazem) jsou
