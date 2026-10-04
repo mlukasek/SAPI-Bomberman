@@ -45,7 +45,10 @@ DELAY_UNITS:	equ 159             ; MZ delay: 5000h x 26 T = 150 ms
 ; Game frame: 60.8 ms on the MZ-700 (BomberNet docs/port-zx-spectrum.md),
 ; counter 2 in mode 2 sets F2 every 3400 clocks.
 FRAME_DIV:	equ 3400
-KEY_HOLD:	equ 2                   ; frames a Consul key press counts as held
+; A Consul key press counts as held for the next 4 frames (frame_wait
+; ages it once before the first one). The player steps every second
+; frame (tmr_player_anim), so one press = 2 steps = one cell.
+KEY_HOLD:	equ 5
 
 ; Tone: the MZ-700 8253 counter 0 runs at 1.1088 MHz (PAL models), the
 ; tone is 1108800 / RATIO Hz. YM3812 F-number = K / (RATIO << block)

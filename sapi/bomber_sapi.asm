@@ -2346,29 +2346,27 @@ map_layer:
 ; ---- composite_map @ 2674
 ; Copy every non-space map_layer char over the draw buffer.
 composite_map:
-	ld de,003e8h                ; 2674
+	push hl                     ; SAPI: same result, about twice as fast
 	ld bc,0*256+0               ; 2677  Y=0,X=0
 	call map_addr               ; 267A
-	exx                         ; 267D
+	ld h,b
+	ld l,c
 	ld bc,0*256+0               ; 267E  Y=0,X=0
 	call draw_addr              ; 2681
-	exx                         ; 2684
+	ld d,b
+	ld e,c
+	ld bc,250*256+020h          ; 4 x 250 cells, C = space
 .cmp_loop:
-	ld a,(bc)                   ; 2685
-	cp 020h                     ; 2686
-	jr z,.cmp_skip              ; 2688
-	exx                         ; 268A
-	ld (bc),a                   ; 268B
-	exx                         ; 268C
-.cmp_skip:
-	inc bc                      ; 268D
-	exx                         ; 268E
-	inc bc                      ; 268F
-	exx                         ; 2690
-	dec de                      ; 2691
-	ld a,d                      ; 2692
-	or e                        ; 2693
-	jr nz,.cmp_loop             ; 2694
+	rept 4
+	ld a,(hl)                   ; 2685
+	cp c                        ; 2686
+	jr z,$+3                    ; 2688  space: keep the draw buffer
+	ld (de),a                   ; 268B
+	inc hl                      ; 268D
+	inc de                      ; 268F
+	endm
+	djnz .cmp_loop
+	pop hl
 	ret                         ; 2696
 
 ; ---- map_addr @ 2697
@@ -2481,48 +2479,91 @@ flush_screen:
 	push bc                     ; 26DA
 	push de                     ; 26DB
 	push hl                     ; 26DC
-	ld hl,CGA                   ; 26DD  SAPI: HL' = CGA address of the cell
-	exx                         ; 26E0
-	ld de,draw_buffer           ; 26E1
-	ld hl,shadow_vram           ; 26E4
-	ld bc,00000h                ; 26E7
-	ld a,020h                   ; 26EA  A' = space (draw buffer is consumed)
-	ex af,af'                   ; 26EC
-	ld c,019h                   ; 26ED
+	ld hl,CGA                   ; SAPI: CGA address of the cell row
+	ld (fs_base),hl
+	ld a,019h                   ; 25 rows
+	ld (fs_rows),a
+	ld hl,draw_buffer           ; SAPI: HL = draw buffer, DE = shadow
+	ld de,shadow_vram
+	ld c,020h                   ; the draw buffer is consumed (spaces)
 .fs_row:
-	ld b,028h                   ; 26EF
+	ld b,014h                   ; 26EF  SAPI: 20 pairs of cells
 .fs_col:
 	ld a,(de)                   ; 26F1
-	ex af,af'                   ; 26F2
-	ld (de),a                   ; 26F3
-	ex af,af'                   ; 26F4
 	cp (hl)                     ; 26F5  changed?
-	ld (hl),a                   ; 26F6
-	call nz,put_vram_char       ; 26F7
+	jr nz,.fs_chg0
+	ld (hl),c
 	inc hl                      ; 26FA
 	inc de                      ; 26FB
-	exx                         ; 26FC
-	inc hl                      ; 26FD  SAPI: 2 bytes per cell
+.fs_c1:
+	ld a,(de)
+	cp (hl)
+	jr nz,.fs_chg1
+	ld (hl),c
 	inc hl
-	exx                         ; 26FE
+	inc de
+.fs_c2:
 	djnz .fs_col                ; 26FF
-	exx                         ; SAPI: next cell row = 8 pixel lines
-	ld bc,7*LINE
+	push hl                     ; SAPI: next cell row = 8 pixel lines
+	ld hl,(fs_base)
+	ld bc,8*LINE
 	add hl,bc
-	exx
-	dec c                       ; 2701
+	ld (fs_base),hl
+	pop hl
+	ld c,020h
+	ld a,(fs_rows)              ; 2701
+	dec a
+	ld (fs_rows),a
 	jr nz,.fs_row               ; 2702
 	pop hl                      ; 2704
 	pop de                      ; 2705
 	pop bc                      ; 2706
 	ret                         ; 2707
+.fs_chg0:
+	ld a,014h                   ; SAPI: CGA address = row + 4 * pair
+	sub b
+	add a,a
+	add a,a
+	call .fs_draw
+	jr .fs_c1
+.fs_chg1:
+	ld a,014h                   ; + 2 for the second cell of the pair
+	sub b
+	add a,a
+	add a,a
+	add a,2
+	call .fs_draw
+	jr .fs_c2
+.fs_draw:
+	push bc                     ; A = offset in the cell row
+	push de
+	push hl
+	ld c,a
+	ld b,000h
+	ld a,(hl)                   ; shadow = new code, consume the draw buffer
+	ld (de),a
+	ld (hl),020h
+	ld hl,(fs_base)
+	add hl,bc
+	call put_vram_char
+	pop hl
+	pop de
+	pop bc
+	inc hl
+	inc de
+	ret
+
+fs_base:
+	defw 0
+fs_rows:
+	defb 0
 
 ; ---- put_vram_char @ 2708
 ; Translate logical code A through game_table/title_table and store char + attribute.
+; SAPI: draws the tile of logical code A at the CGA address HL (8 lines of
+; 2 bytes); changes AF, BC, DE, HL.
 put_vram_char:
-	push bc                     ; 2708
-	push de                     ; 2709
-	push hl                     ; 270A
+	ex de,hl                    ; SAPI: DE = CGA address
 	ld l,a                      ; 270E  SAPI: HL = code (tile index tables)
 	ld h,000h                   ; 270F
 
@@ -2533,39 +2574,31 @@ mode_patch:
 	nop                         ; 2713
 	cp 05ah                     ; 2714  title mode: codes < 0x5A use title_table
 	jr nc,.pvc_game             ; 2716
-	ld de,title_idx             ; 2718  SAPI: tile numbers
+	ld bc,title_idx             ; 2718  SAPI: tile numbers
 	jr .pvc_lookup              ; 271B
 .pvc_game:
-	ld de,game_idx              ; 271D  SAPI: tile numbers
+	ld bc,game_idx              ; 271D  SAPI: tile numbers
 .pvc_lookup:
-	add hl,de                   ; 2720  SAPI: HL = tiles + 16 * tile number
+	add hl,bc                   ; 2720  SAPI: HL = tiles + 16 * tile number
 	ld l,(hl)
 	ld h,000h
 	add hl,hl
 	add hl,hl
 	add hl,hl
 	add hl,hl
-	ld de,tiles
-	add hl,de
-	exx                         ; SAPI: DE = CGA address (HL')
-	push hl
-	exx
-	pop de
-	ld bc,LINE                  ; after ldi, ldi BC = LINE-2: next line
-	ld a,8
-.pvc_line:
-	ldi
-	ldi
-	ex de,hl
+	ld bc,tiles
 	add hl,bc
-	inc bc
-	inc bc
-	ex de,hl
-	dec a
-	jr nz,.pvc_line
-	pop hl                      ; 272C
-	pop de                      ; 272D
-	pop bc                      ; 272E
+	rept 7
+	ldi                         ; SAPI: one pixel line of the cell
+	ldi
+	ld a,e                      ; next line: + LINE - 2 (C000h + 80 * n,
+	add a,LINE-2                ; the carry goes to D)
+	ld e,a
+	jr nc,$+3
+	inc d
+	endm
+	ldi
+	ldi
 	ret                         ; 272F
 
 ; ---- clear_buffers @ 2730
