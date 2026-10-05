@@ -72,17 +72,17 @@ stage_start:
 	xor a                       ; 1268
 	ld (bonus_present),a        ; 1269
 	ld (exit_present),a         ; 126C
-	ld hl,00918h                ; 126F  bytes 18 09 = "jr +9": game mode for put_vram_char
-	ld (mode_patch),hl          ; 1272
+	ld a,high game_tlo          ; 126F  SAPI: game mode for put_vram_char
+	ld (tile_page),a            ;       (MZ: mode_patch = "jr +9")
 
 ; ---- main_loop @ 1275
 ; Main game loop - one iteration per frame.
 main_loop:
 	call tick_timers            ; 1275
 	call draw_hud               ; 1278
-	call draw_walls             ; 127B
-	call draw_hud_icons         ; 127E
-	call composite_map          ; 1281
+	call draw_hud_icons         ; 127E  SAPI: walls and map are in the buffer
+	                            ;       already (flush_screen), no draw_walls
+	                            ;       (127B) and composite_map (1281)
 	call update_bombs           ; 1284
 	call draw_bombs             ; 1287
 	call place_bomb             ; 128A
@@ -229,9 +229,7 @@ game_over:
 frame_no_input:
 	call tick_timers            ; 1368
 	call draw_hud               ; 136B
-	call draw_walls             ; 136E
-	call draw_hud_icons         ; 1371
-	call composite_map          ; 1374
+	call draw_hud_icons         ; 1371  SAPI: no draw_walls, composite_map
 	call draw_bombs             ; 1377
 	call draw_bonus             ; 137A
 	call draw_exit              ; 137D
@@ -245,9 +243,7 @@ frame_no_input:
 frame_minimal:
 	call tick_timers            ; 138A
 	call draw_hud               ; 138D
-	call draw_walls             ; 1390
-	call draw_hud_icons         ; 1393
-	call composite_map          ; 1396
+	call draw_hud_icons         ; 1393  SAPI: no draw_walls, composite_map
 	call draw_bonus             ; 1399
 	call draw_exit              ; 139C
 	call draw_player            ; 139F
@@ -256,16 +252,45 @@ frame_minimal:
 ; ---- title_screen @ 13A3
 ; Title screen: switch translation mode, draw logo, legend, demo sprites; wait for SPACE.
 title_screen:
-	ld hl,00000h                ; 13A3  bytes 00 00 = nop nop: title mode
-	ld (mode_patch),hl          ; 13A6
+	ld a,high title_tlo         ; 13A3  SAPI: title mode for put_vram_char
+	ld (tile_page),a            ;       (MZ: mode_patch = nop nop)
 	call clear_buffers          ; 13A9
 	call title_init_enemies     ; 13AC
 	call title_init_bombs       ; 13AF
+	call title_static           ; SAPI: logo, texts and scores once, as the
+	ld hl,draw_buffer           ; background put back by flush_screen (the
+	ld de,map_layer             ; map is not used in title mode); the MZ drew
+	ld bc,1000                  ; them every frame
+	ldir
 title_loop:
 	call key_fire               ; 13B2  SAPI: fire or space (MZ: GETKY)
 	cp 020h                     ; 13B5  SPACE starts the game
-	jp z,new_game               ; 13B7
+	jr z,title_start            ; 13B7  SAPI: (MZ: jp z,new_game)
 	call tick_timers            ; 13BA
+	call draw_bombs             ; 14CD
+	call draw_enemies           ; 14D0
+	ld a,(tmr_player_anim)      ; 14D3  flip enemy/bomb animation when player timer wraps
+	or a                        ; 14D6
+	jr nz,.tl_next              ; 14D7
+	ld a,(bomb_anim)            ; 14D9
+	xor 002h                    ; 14DC
+	ld (bomb_anim),a            ; 14DE
+	ld a,(enemy_anim)           ; 14E1
+	xor 002h                    ; 14E4
+	ld (enemy_anim),a           ; 14E6
+.tl_next:
+	jp title_loop               ; 14E9
+
+; SAPI: the fire or space that starts the game does not lay a bomb
+; (key_fire gives nothing until it is released).
+title_start:
+	ld a,1
+	ld (fire_lock),a
+	jp new_game
+
+; ---- title_static
+; SAPI: the static part of title_loop (13BD-14CC), called once.
+title_static:
 	ld bc,0*256+0               ; 13BD  Y=0,X=0
 	call draw_addr              ; 13C0
 	ld d,0f0h                   ; 13C3  240 chars = 6 rows
@@ -369,19 +394,7 @@ title_loop:
 	call draw_addr              ; 14C5
 	ld a,08ch                   ; 14C8  BOMBER MAN legend sprite
 	call put_tile               ; 14CA
-	call draw_bombs             ; 14CD
-	call draw_enemies           ; 14D0
-	ld a,(tmr_player_anim)      ; 14D3  flip enemy/bomb animation when player timer wraps
-	or a                        ; 14D6
-	jr nz,.tl_next              ; 14D7
-	ld a,(bomb_anim)            ; 14D9
-	xor 002h                    ; 14DC
-	ld (bomb_anim),a            ; 14DE
-	ld a,(enemy_anim)           ; 14E1
-	xor 002h                    ; 14E4
-	ld (enemy_anim),a           ; 14E6
-.tl_next:
-	jp title_loop               ; 14E9
+	ret
 
 ; ---- title_init_bombs @ 14EC
 ; Demo bomb for the legend at (32,11).
@@ -698,7 +711,7 @@ draw_bonus:
 	ld e,a                      ; 18D4
 	ld b,d                      ; 18D5
 	ld c,e                      ; 18D6
-	call draw_addr              ; 18D7
+	call draw_addr_w            ; 18D7  SAPI: marked for flush_screen
 	ld a,00ah                   ; 18DA  tile 0x0A/0x0B/0x1A/0x1B
 	call put_bonus_char         ; 18DC
 	inc bc                      ; 18DF
@@ -791,7 +804,7 @@ draw_exit:
 	ld b,a                      ; 1964
 	ld a,(exit_x)               ; 1965
 	ld c,a                      ; 1968
-	call draw_addr              ; 1969
+	call draw_addr_w            ; 1969  SAPI: marked for flush_screen
 	ld a,00eh                   ; 196C  tile 0x0E/0x0F/0x1E/0x1F
 	call put_exit_char          ; 196E
 	inc bc                      ; 1971
@@ -1064,7 +1077,7 @@ draw_enemies:
 	ld c,a                      ; 1B21
 	ld a,(ix+002h)              ; 1B22
 	ld b,a                      ; 1B25
-	call draw_addr              ; 1B26
+	call draw_addr_w            ; 1B26  SAPI: marked for flush_screen
 	ld a,(ix+000h)              ; 1B29
 	add a,a                     ; 1B2C  dying: tile = state*2 + 0x1E (0x22..0x30)
 	add a,01eh                  ; 1B2D
@@ -1128,7 +1141,7 @@ draw_enemies:
 	ld c,a                      ; 1B9E
 	ld a,(ix+002h)              ; 1B9F
 	ld b,a                      ; 1BA2
-	call draw_addr              ; 1BA3
+	call draw_addr_w            ; 1BA3  SAPI: marked for flush_screen
 	ld a,(ix+003h)              ; 1BA6  tile = type*4 + 0xC0 + anim
 	add a,a                     ; 1BA9
 	add a,a                     ; 1BAA
@@ -1207,7 +1220,7 @@ place_bomb:
 	ld a,(player_x)             ; 1C3B
 	ld (ix+001h),a              ; 1C3E
 	ld c,a                      ; 1C41
-	call map_addr               ; 1C42
+	call map_addr_w             ; 1C42  SAPI: marked for flush_screen
 	ld d,b                      ; 1C45
 	ld e,c                      ; 1C46
 	call is_space               ; 1C47  2x2 must be empty in the map layer
@@ -1324,12 +1337,14 @@ update_bombs:
 
 ; ---- blast_pattern @ 1D02
 ; 4 arms x 8 (dY,dX) pairs: left, right, up, down; each arm = 4 chars top row then 4 chars bottom row. 0x80 ends.
+; SAPI: the pairs are offsets dY*40+dX in the buffers (blast_addr); 8000h ends.
+; (Plain numbers: pasmo reads -1*40+1 as -(1*40+1).)
 blast_pattern:
-	defb 00h,0FFh,00h,0FEh,00h,0FDh,00h,0FCh,01h,0FFh,01h,0FEh,01h,0FDh,01h,0FCh	; left
-	defb 00h,02h,00h,03h,00h,04h,00h,05h,01h,02h,01h,03h,01h,04h,01h,05h	; right
-	defb 0FFh,00h,0FEh,00h,0FDh,00h,0FCh,00h,0FFh,01h,0FEh,01h,0FDh,01h,0FCh,01h	; up
-	defb 02h,00h,03h,00h,04h,00h,05h,00h,02h,01h,03h,01h,04h,01h,05h,01h	; down
-	defb 80h,80h,80h,80h	; end (only the first 0x80 is needed)
+	defw -1,-2,-3,-4,39,38,37,36	; left
+	defw 2,3,4,5,42,43,44,45	; right
+	defw -40,-80,-120,-160,-39,-79,-119,-159	; up
+	defw 80,120,160,200,81,121,161,201	; down
+	defw 08000h	; end
 
 ; ---- draw_bombs @ 1D46
 ; Draw ticking bombs (0x60..0x6C) and explosions (center 0xE0.., arms via blast_pattern).
@@ -1390,7 +1405,7 @@ draw_bombs:
 	inc d                       ; 1D97
 	call put_bomb_char          ; 1D98
 	exx                         ; 1D9B
-	call draw_addr              ; 1D9C
+	call draw_addr_w            ; 1D9C  SAPI: marked for flush_screen
 	ld a,d                      ; 1D9F
 	call put_tile               ; 1DA0
 	exx                         ; 1DA3
@@ -1413,7 +1428,7 @@ put_bomb_char:
 	ld c,a                      ; 1DBB
 	ld a,(ix+002h)              ; 1DBC
 	ld b,a                      ; 1DBF
-	call map_addr               ; 1DC0
+	call map_addr_w             ; 1DC0  SAPI: marked for flush_screen
 	ld a,020h                   ; 1DC3  remove bomb from map layer
 	call fill_2x2               ; 1DC5
 	jr .db_next                 ; 1DC8
@@ -1422,7 +1437,12 @@ put_bomb_char:
 	ld c,a                      ; 1DCD
 	ld a,(ix+002h)              ; 1DCE
 	ld b,a                      ; 1DD1
+	call mark_cross             ; SAPI: center and arms for flush_screen
 	call map_addr               ; 1DD2
+	ld h,b                      ; SAPI: draw buffer address of the bomb for
+	ld l,c                      ; blast_addr
+	res 3,h
+	ld (db_base),hl
 	exx                         ; 1DD5
 	ld a,d                      ; 1DD6
 	exx                         ; 1DD7
@@ -1441,21 +1461,13 @@ put_bomb_char:
 	exx                         ; 1DE8
 	ld hl,blast_pattern         ; 1DE9
 .db_arm_loop:
-	ld a,(hl)                   ; 1DEC  0x80 ends the pattern (0x00 is a valid offset)
-	or a                        ; 1DED
-	jr z,.db_arm_first          ; 1DEE
-	add a,a                     ; 1DF0
-	or a                        ; 1DF1
+	inc hl                      ; 1DEC  SAPI: 8000h ends the pattern
+	ld a,(hl)                   ;       (MZ: dY = 80h)
+	dec hl
+	cp 080h
 	jr z,.db_next               ; 1DF2
 .db_arm_first:
-	ld a,(hl)                   ; 1DF4
-	inc hl                      ; 1DF5
-	add a,(ix+002h)             ; 1DF6
-	ld b,a                      ; 1DF9
-	ld a,(hl)                   ; 1DFA
-	inc hl                      ; 1DFB
-	add a,(ix+001h)             ; 1DFC
-	ld c,a                      ; 1DFF
+	call blast_addr             ; 1DF4  SAPI: BC = draw buffer address
 	call blast_cell_near        ; 1E00
 	cp 088h                     ; 1E03  solid wall: skip the remaining 3 chars of this row
 	jr nz,.db_arm_second        ; 1E05
@@ -1474,14 +1486,7 @@ dead_code_1:
 	inc hl                      ; 1E12
 	jr .db_arm_loop             ; 1E13
 .db_arm_second:
-	ld a,(hl)                   ; 1E15
-	inc hl                      ; 1E16
-	add a,(ix+002h)             ; 1E17
-	ld b,a                      ; 1E1A
-	ld a,(hl)                   ; 1E1B
-	inc hl                      ; 1E1C
-	add a,(ix+001h)             ; 1E1D
-	ld c,a                      ; 1E20
+	call blast_addr             ; 1E15  SAPI: BC = draw buffer address
 	call blast_cell_near        ; 1E21
 	cp 080h                     ; 1E24  brick/wall: skip the remaining 2 chars
 	jr c,.db_arm_third          ; 1E26
@@ -1493,14 +1498,7 @@ dead_code_1:
 	inc hl                      ; 1E2F
 	jr .db_arm_loop             ; 1E30
 .db_arm_third:
-	ld a,(hl)                   ; 1E32
-	inc hl                      ; 1E33
-	add a,(ix+002h)             ; 1E34
-	ld b,a                      ; 1E37
-	ld a,(hl)                   ; 1E38
-	inc hl                      ; 1E39
-	add a,(ix+001h)             ; 1E3A
-	ld c,a                      ; 1E3D
+	call blast_addr             ; 1E32  SAPI: BC = draw buffer address
 	call blast_cell_far         ; 1E3E
 	ex af,af'                   ; 1E41
 	cp 080h                     ; 1E42  brick: skip the last char
@@ -1513,29 +1511,37 @@ dead_code_1:
 	jr .db_arm_loop             ; 1E4D
 .db_arm_fourth:
 	ex af,af'                   ; 1E4F
-	ld a,(hl)                   ; 1E50
-	inc hl                      ; 1E51
-	add a,(ix+002h)             ; 1E52
-	ld b,a                      ; 1E55
-	ld a,(hl)                   ; 1E56
-	inc hl                      ; 1E57
-	add a,(ix+001h)             ; 1E58
-	ld c,a                      ; 1E5B
+	call blast_addr             ; 1E50  SAPI: BC = draw buffer address
 	call blast_cell_far         ; 1E5C
 	jr .db_arm_loop             ; 1E5F
 
+; ---- blast_addr
+; SAPI: BC = db_base + the offset at HL (blast_pattern), HL += 2.
+blast_addr:
+	ld a,(db_base)
+	add a,(hl)
+	ld c,a
+	inc hl
+	ld a,(db_base+1)
+	adc a,(hl)
+	ld b,a
+	inc hl
+	ret
+
+db_base:
+	defw 0                      ; SAPI: draw buffer address of the bomb
+
 ; ---- blast_cell_near @ 1E61
 ; Blast one char (Y=B,X=C): walls stop; bricks 0x80..0x87 burn one step; else write fire E'.
+; SAPI: BC = draw buffer address of the char (MZ: push bc, draw_addr, pop
+; bc, 1E61-1E66).
 blast_cell_near:
-	push bc                     ; 1E61
-	call draw_addr              ; 1E62
 	ld a,(bc)                   ; 1E65  draw buffer: walls/pillars stop the blast
-	pop bc                      ; 1E66
 	cp 088h                     ; 1E67
 	ret z                       ; 1E69
 	cp 089h                     ; 1E6A
 	ret z                       ; 1E6C
-	call map_addr               ; 1E6D
+	set 3,b                     ; 1E6D  SAPI: map_layer = draw | 0800h (MZ: map_addr)
 	ld a,(bc)                   ; 1E70  map layer
 	cp 088h                     ; 1E71
 	ret z                       ; 1E73
@@ -1560,19 +1566,18 @@ blast_cell_near:
 
 ; ---- blast_cell_far @ 1E8C
 ; Blast one char beyond a brick check: bricks stop it, empty gets fire E'.
+; SAPI: BC = draw buffer address of the char (MZ: push bc, draw_addr, 1E8C,
+; 1E8D, and pop bc, 1E94).
 blast_cell_far:
-	push bc                     ; 1E8C
-	call draw_addr              ; 1E8D
 	ld a,(bc)                   ; 1E90
 	ex af,af'                   ; 1E91
 	ld a,(bc)                   ; 1E92
 	ex af,af'                   ; 1E93
-	pop bc                      ; 1E94
 	cp 088h                     ; 1E95
 	ret z                       ; 1E97
 	cp 089h                     ; 1E98
 	ret z                       ; 1E9A
-	call map_addr               ; 1E9B
+	set 3,b                     ; 1E9B  SAPI: map_layer (MZ: map_addr)
 	ld a,(bc)                   ; 1E9E
 	cp 08ah                     ; 1E9F
 	jr nc,.bcf_fire             ; 1EA1
@@ -1674,7 +1679,7 @@ draw_player:
 	ld b,a                      ; 1F0A
 	ld a,(player_x)             ; 1F0B
 	ld c,a                      ; 1F0E
-	call draw_addr              ; 1F0F
+	call draw_addr_w            ; 1F0F  SAPI: marked for flush_screen
 	call put_player_char        ; 1F12
 	call put_player_char        ; 1F15
 	ld hl,00026h                ; 1F18
@@ -1882,6 +1887,8 @@ draw_hud:
 
 ; ---- draw_walls @ 2061
 ; Outer wall (0x88) and 9x5 pillars (0x89) into the draw buffer.
+; SAPI: only in stage_start (generate_map reads the walls in the draw
+; buffer); the walls are in map_layer too (clear_map).
 draw_walls:
 	ld a,088h                   ; 2061  top row 0x88
 	ld d,028h                   ; 2063
@@ -2274,77 +2281,197 @@ print_string:
 
 ; ---- draw_addr @ 2261
 ; BC = draw_buffer + B*40 + C  (B=row/Y, C=column/X).
+; SAPI: from the row table rtab; keeps A, DE, HL as the original.
 draw_addr:
-	push hl                     ; 2261
-	push de                     ; 2262
-	ld l,b                      ; 2263  HL = B*40
-	ld h,000h                   ; 2264
-	ld e,l                      ; 2266
-	ld d,h                      ; 2267
-	add hl,hl                   ; 2268
-	add hl,hl                   ; 2269
-	add hl,de                   ; 226A
-	add hl,hl                   ; 226B
-	add hl,hl                   ; 226C
-	add hl,hl                   ; 226D
-	ld b,000h                   ; 226E  + C
-	add hl,bc                   ; 2270
-	ld bc,draw_buffer           ; 2271
-	add hl,bc                   ; 2274
-	ld b,h                      ; 2275
-	ld c,l                      ; 2276
-	pop de                      ; 2277
-	pop hl                      ; 2278
-	ret                         ; 2279
+	push hl
+	ld h,high rtab
+	ld l,b
+	ld b,(hl)                   ; row address, low
+	set 5,l
+	ld h,(hl)                   ; high
+	ld l,b
+	ld b,000h                   ; + C
+	add hl,bc
+	ld b,h
+	ld c,l
+	pop hl
+	ret
+
+; SAPI: draw_addr of a 2x2 that is going to be drawn: flush_screen
+; compares it with the screen (mark2). Changes AF.
+draw_addr_w:
+	call mark2
+	jr draw_addr
+
+; SAPI: map_addr of a 2x2 that is going to be written: flush_screen copies
+; it to the draw buffer. Changes AF.
+map_addr_w:
+	call mark2
+	jp map_addr
+
+; ---- mark2
+; SAPI: the 2x2 at row B, column C goes into the column ranges of rtab
+; compared by flush_screen. Changes AF.
+mark2:
+	push hl
+	ld h,high rtab
+	ld a,b
+	add a,128
+	ld l,a                      ; first column of row B
+	ld a,c
+	cp (hl)
+	jr nc,.mk_f1
+	ld (hl),a
+.mk_f1:
+	inc l                       ; of row B+1
+	cp (hl)
+	jr nc,.mk_f2
+	ld (hl),a
+.mk_f2:
+	inc a                       ; last column C+1
+	set 5,l                     ; of row B+1
+	cp (hl)
+	jr c,.mk_l1
+	ld (hl),a
+.mk_l1:
+	dec l                       ; of row B
+	cp (hl)
+	jr c,.mk_l2
+	ld (hl),a
+.mk_l2:
+	pop hl
+	ret
+; ---- mark_cross
+; SAPI: the explosion of the bomb at row B, column C (2x2 and the arms of
+; 4 chars) for flush_screen. Changes AF.
+mark_cross:
+	push de
+	ld a,c                      ; rows B, B+1: columns C-4 .. C+5
+	sub 4
+	jr nc,.mc_left
+	xor a
+.mc_left:
+	ld d,a
+	ld a,c
+	add a,5
+	cp 40
+	jr c,.mc_right
+	ld a,39
+.mc_right:
+	ld e,a
+	call mark_range
+	inc b
+	call mark_range
+	dec b
+	push bc                     ; rows B-4 .. B+5: columns C, C+1
+	ld d,c
+	ld e,c
+	inc e
+	ld a,b
+	add a,5
+	cp 25
+	jr c,.mc_bottom
+	ld a,24
+.mc_bottom:
+	ld c,a
+	ld a,b
+	sub 4
+	jr nc,.mc_top
+	xor a
+.mc_top:
+	ld b,a
+.mc_rows:
+	call mark_range
+	ld a,b
+	inc b
+	cp c
+	jr c,.mc_rows
+	pop bc
+	pop de
+	ret
+
+; ---- mark_range
+; SAPI: columns D..E of row B for flush_screen. Changes AF.
+mark_range:
+	push hl
+	ld h,high rtab
+	ld a,b
+	add a,128
+	ld l,a
+	ld a,d
+	cp (hl)
+	jr nc,.mr_first
+	ld (hl),a
+.mr_first:
+	set 5,l
+	ld a,e
+	cp (hl)
+	jr c,.mr_last
+	ld (hl),a
+.mr_last:
+	pop hl
+	ret
 
 ; ---- clear_map @ 227A
 ; Fill map_layer with spaces.
+; SAPI: and the outer wall and the pillars (draw_walls), which flush_screen
+; takes from the map; the whole screen is compared in the next two frames.
 clear_map:
-	ld hl,map_layer             ; 227A
-	ld a,020h                   ; 227D
-	ld b,028h                   ; 227F
-.cm_row:
-	ld c,019h                   ; 2281
-.cm_col:
-	ld (hl),a                   ; 2283
-	inc hl                      ; 2284
-	dec c                       ; 2285
-	jr nz,.cm_col               ; 2286
-	dec b                       ; 2288
-	jr nz,.cm_row               ; 2289
-	ret                         ; 228B
+	ld hl,map_layer+1000        ; SAPI: fill_1000 (MZ: loop 40 x 25)
+	ld de,02020h
+	call fill_1000
+	ld a,1
+	ld (full_cur),a
+	ld hl,map_layer             ; top and bottom row 88h
+	ld de,map_layer+23*40
+	ld a,088h
+	ld b,40
+.cm_tb:
+	ld (hl),a
+	inc hl
+	ld (de),a
+	inc de
+	djnz .cm_tb
+	ld hl,map_layer+40          ; columns 0 and 39 of rows 1-22
+	ld de,39
+	ld b,22
+.cm_lr:
+	ld (hl),a
+	add hl,de
+	ld (hl),a
+	inc hl
+	djnz .cm_lr
+	ld hl,map_layer+3*40+3      ; 9 x 5 pillars 89h from (3,3), 4 apart
+	ld a,089h
+	ld c,5
+.cm_prow:
+	ld b,9
+.cm_pcol:
+	ld (hl),a
+	inc hl
+	ld (hl),a
+	ld de,39
+	add hl,de
+	ld (hl),a
+	inc hl
+	ld (hl),a
+	ld de,4-41
+	add hl,de
+	djnz .cm_pcol
+	ld de,4*40-36
+	add hl,de
+	dec c
+	jr nz,.cm_prow
+	ret
 
 ; ---- map_layer @ 228C
 ; 40x25 logical codes: walls are NOT here; bricks 0x80..0x87, bombs, fire, items. Snapshot of RAM at save time.
-map_layer:
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 0
-	defb 20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 1
-	defb 20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 2
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 3
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 4
-	defb 20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h	; row 5
-	defb 20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h	; row 6
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h	; row 7
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h	; row 8
-	defb 20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h	; row 9
-	defb 20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h	; row 10
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h	; row 11
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h	; row 12
-	defb 20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h	; row 13
-	defb 20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h	; row 14
-	defb 20h,80h,80h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,80h,80h,20h	; row 15
-	defb 20h,80h,80h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,80h,80h,20h	; row 16
-	defb 20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h	; row 17
-	defb 20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h	; row 18
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 19
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 20
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 21
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,80h,80h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 22
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 23
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 24
+; SAPI: the walls are here too (clear_map); the buffer is at the end
+; (map_layer equ), the RAM snapshot is left out.
 
 ; ---- composite_map @ 2674
 ; Copy every non-space map_layer char over the draw buffer.
+; SAPI: only in stage_start, flush_screen does it in the frames.
 composite_map:
 	push hl                     ; SAPI: same result, about twice as fast
 	ld bc,0*256+0               ; 2677  Y=0,X=0
@@ -2371,28 +2498,22 @@ composite_map:
 
 ; ---- map_addr @ 2697
 ; BC = map_layer + B*40 + C.
+; SAPI: map_layer = draw_buffer | 0800h (4 KB aligned); keeps A, DE, HL.
 map_addr:
-	push hl                     ; 2697
-	push de                     ; 2698
-	ld l,b                      ; 2699  HL = B*40
-	ld h,000h                   ; 269A
-	ld e,l                      ; 269C
-	ld d,h                      ; 269D
-	add hl,hl                   ; 269E
-	add hl,hl                   ; 269F
-	add hl,de                   ; 26A0
-	add hl,hl                   ; 26A1
-	add hl,hl                   ; 26A2
-	add hl,hl                   ; 26A3
-	ld b,000h                   ; 26A4
-	add hl,bc                   ; 26A6
-	ld bc,map_layer             ; 26A7
-	add hl,bc                   ; 26AA
-	ld b,h                      ; 26AB
-	ld c,l                      ; 26AC
-	pop de                      ; 26AD
-	pop hl                      ; 26AE
-	ret                         ; 26AF
+	push hl
+	ld h,high rtab
+	ld l,b
+	ld b,(hl)
+	set 5,l
+	ld h,(hl)
+	ld l,b
+	ld b,000h
+	add hl,bc
+	set 3,h                     ; draw_buffer -> map_layer
+	ld b,h
+	ld c,l
+	pop hl
+	ret
 
 ; ---- delay @ 26B0
 ; Busy wait (0x5000 iterations).
@@ -2405,11 +2526,10 @@ delay:
 
 ; ---- beep @ 26B9
 ; Play tone (ratio already stored at RATIO) for B*C loop counts.
+; SAPI: the tone plays C units of the MZ loop (DJNZ x 256) while the game
+; goes on (tone_start, platform.asm); the MZ waited.
 beep:
-	call MSTA                   ; 26B9  SAPI: YM3812 tone
-	call wait_units             ; SAPI: C units of the MZ loop (DJNZ x 256)
-	call MSTP                   ; 26C1  SAPI: tone off
-	ret                         ; 26C4
+	jp tone_start               ; 26B9  SAPI: YM3812 tone
 
 unused_26c5:
 	defb 01h
@@ -2475,214 +2595,287 @@ stage_cleared:
 
 ; ---- flush_screen @ 26DA
 ; Diff draw buffer against shadow, write changed chars+attributes to VRAM, clear draw buffer.
+; SAPI: compares only the columns drawn in this frame or in the previous
+; one (rtab, marked by draw_addr_w, map_addr_w, mark_cross) and the row
+; 24, then puts the background back there from map_layer: the map with the
+; walls in game mode (the draw buffer is then what the MZ had after
+; draw_walls and composite_map), the logo and texts in title mode
+; (title_screen). The whole screen when full_cur or full_prev is set
+; (clear_buffers, clear_map).
 flush_screen:
 	push bc                     ; 26DA
 	push de                     ; 26DB
 	push hl                     ; 26DC
-	ld hl,CGA                   ; SAPI: CGA address of the cell row
-	ld (fs_base),hl
-	ld a,019h                   ; 25 rows
-	ld (fs_rows),a
-	ld hl,draw_buffer           ; SAPI: HL = draw buffer, DE = shadow
-	ld de,shadow_vram
-	ld c,020h                   ; the draw buffer is consumed (spaces)
+	call tone_poll
+	ld hl,rtab+128+24           ; the HUD row is compared every frame
+	ld (hl),0
+	ld l,160+24
+	ld (hl),39
+	ld a,(full_cur)
+	ld hl,full_prev
+	or (hl)
+	jr nz,.fs_full
+	ld hl,rtab+128              ; first column of row 0
+	ld b,25
 .fs_row:
-	ld b,014h                   ; 26EF  SAPI: 20 pairs of cells
-.fs_col:
-	ld a,(de)                   ; 26F1
-	cp (hl)                     ; 26F5  changed?
-	jr nz,.fs_chg0
-	ld (hl),c
-	inc hl                      ; 26FA
-	inc de                      ; 26FB
-.fs_c1:
-	ld a,(de)
-	cp (hl)
-	jr nz,.fs_chg1
-	ld (hl),c
-	inc hl
-	inc de
-.fs_c2:
-	djnz .fs_col                ; 26FF
-	push hl                     ; SAPI: next cell row = 8 pixel lines
-	ld hl,(fs_base)
-	ld bc,8*LINE
-	add hl,bc
-	ld (fs_base),hl
-	pop hl
-	ld c,020h
-	ld a,(fs_rows)              ; 2701
-	dec a
-	ld (fs_rows),a
-	jr nz,.fs_row               ; 2702
+	ld a,(hl)                   ; this frame
+	set 6,l
+	and (hl)                    ; and the previous one: 0FFh = nothing drawn
+	res 6,l
+	inc a
+	call nz,fs_cmp_row
+	inc l
+	djnz .fs_row
+	jr .fs_end
+.fs_full:
+	xor a
+.ff_row:
+	ld (fs_row),a
+	ld e,0
+	ld b,40
+	call fs_seg
+	ld a,(fs_row)
+	inc a
+	cp 25
+	jr c,.ff_row
+	ld hl,map_layer             ; the background
+	ld de,draw_buffer
+	ld bc,1000
+	ldir
+	ld hl,rtab+128              ; this frame's columns -> previous frame
+	ld de,rtab+192
+	ld bc,64
+	ldir
+	ld hl,rtab+128
+	ld b,32
+.ff_first:
+	ld (hl),0FFh
+	inc l
+	djnz .ff_first
+	ld b,32
+.ff_last:
+	ld (hl),0
+	inc l
+	djnz .ff_last
+	ld hl,full_cur
+	ld a,(hl)
+	ld (hl),0
+	ld (full_prev),a
+.fs_end:
+	call tone_poll
 	pop hl                      ; 2704
 	pop de                      ; 2705
 	pop bc                      ; 2706
 	ret                         ; 2707
-.fs_chg0:
-	ld a,014h                   ; SAPI: CGA address = row + 4 * pair
-	sub b
-	add a,a
-	add a,a
-	call .fs_draw
-	jr .fs_c1
-.fs_chg1:
-	ld a,014h                   ; + 2 for the second cell of the pair
-	sub b
-	add a,a
-	add a,a
-	add a,2
-	call .fs_draw
-	jr .fs_c2
-.fs_draw:
-	push bc                     ; A = offset in the cell row
-	push de
+
+; ---- fs_cmp_row
+; SAPI: row L - 128 (L points to its first column in rtab): compares the
+; columns drawn in this frame or in the previous one, moves this frame's
+; columns to the previous frame and copies the background back there.
+; Keeps BC, HL.
+fs_cmp_row:
+	push bc
 	push hl
-	ld c,a
-	ld b,000h
-	ld a,(hl)                   ; shadow = new code, consume the draw buffer
-	ld (de),a
-	ld (hl),020h
-	ld hl,(fs_base)
-	add hl,bc
-	call put_vram_char
+	ld a,l
+	sub 128
+	ld (fs_row),a
+	ld a,(hl)                   ; first column: of this or the previous frame
+	set 6,l
+	cp (hl)
+	jr c,.fr_first
+	ld a,(hl)
+.fr_first:
+	ld e,a
+	res 6,l
+	set 5,l                     ; last column
+	ld a,(hl)
+	set 6,l
+	cp (hl)
+	jr nc,.fr_last
+	ld a,(hl)
+.fr_last:
+	cp 40
+	jr c,.fr_cols
+	ld a,39
+.fr_cols:
+	sub e
+	inc a
+	ld b,a
+	call fs_seg
 	pop hl
-	pop de
+	push hl
+	ld e,(hl)                   ; this frame's columns -> previous frame
+	ld (hl),0FFh
+	set 6,l
+	ld (hl),e
+	res 6,l
+	set 5,l
+	ld a,(hl)
+	ld (hl),0
+	set 6,l
+	ld (hl),a
+	sub e
+	jr c,.fr_end                ; nothing drawn in this frame
+	inc a
+	ld c,a                      ; the background back
+	ld b,000h
+	ld a,(fs_row)
+	ld l,a
+	ld h,high rtab
+	ld a,(hl)
+	set 5,l
+	ld h,(hl)
+	add a,e
+	ld l,a
+	jr nc,.fr_nc
+	inc h
+.fr_nc:
+	ld d,h
+	ld e,l
+	set 3,h                     ; map_layer
+	ldir
+.fr_end:
+	pop hl
 	pop bc
-	inc hl
-	inc de
 	ret
 
-fs_base:
-	defw 0
-fs_rows:
-	defb 0
+; ---- fs_seg
+; SAPI: compares B cells of row fs_row from column E with the shadow and
+; draws the changed ones (put_vram_char). Changes AF, BC, DE, HL and the
+; alternate BC', DE', HL' (the game keeps nothing there across frames).
+fs_seg:
+	ld (fs_sp),sp
+	ld h,high rtab
+	ld a,(fs_row)
+	ld l,a
+	ld c,(hl)                   ; draw buffer address of the row
+	set 5,l
+	ld d,(hl)
+	set 6,l
+	ld a,(hl)                   ; CGA address of the row, high
+	ld (fs_cgahi),a
+	res 5,l
+	ld a,(hl)                   ; low (00h or 80h)
+	sub c
+	sub c
+	ld h,d
+	ld l,c
+	ld c,a                      ; C + 2 * L = low byte of the CGA address
+	ld a,e                      ; + first column
+	add a,l
+	ld l,a
+	jr nc,.sg_nc
+	inc h
+.sg_nc:
+	ld d,h                      ; DE = shadow_vram = draw_buffer | 0400h
+	set 2,d
+	ld e,l
+.sg_loop:
+	ld a,(de)
+	cp (hl)
+	jr nz,.sg_chg
+.sg_next:
+	inc hl
+	inc de
+	djnz .sg_loop
+	ret
+.sg_chg:
+	ld a,(hl)                   ; changed: shadow = new code
+	ld (de),a
 
 ; ---- put_vram_char @ 2708
 ; Translate logical code A through game_table/title_table and store char + attribute.
-; SAPI: draws the tile of logical code A at the CGA address HL (8 lines of
-; 2 bytes); changes AF, BC, DE, HL.
-put_vram_char:
-	ex de,hl                    ; SAPI: DE = CGA address
-	ld l,a                      ; 270E  SAPI: HL = code (tile index tables)
-	ld h,000h                   ; 270F
+; SAPI: draws the tile of logical code A (8 lines of 2 bytes); the tile
+; address comes from the tables of the mode (tile_page, MZ: mode_patch).
+; Reads the tile with POP (interrupts are disabled).
+	exx
+	ld l,a
+	ld a,(tile_page)
+	ld h,a
+	ld e,(hl)                   ; DE' = tile address
+	inc h
+	ld d,(hl)
+	exx
+	ld a,l
+	add a,a
+	add a,c
+	exx
+	ld l,a
+	ld a,(fs_cgahi)
+	ld h,a                      ; HL' = CGA address
+	ex de,hl
+	ld sp,hl
+	ex de,hl
+	ld de,LINE-1
+	rept 7
+	pop bc                      ; one pixel line of the cell
+	ld (hl),c
+	inc l                       ; (the address is even)
+	ld (hl),b
+	add hl,de
+	endm
+	pop bc
+	ld (hl),c
+	inc l
+	ld (hl),b
+	ld sp,(fs_sp)
+	exx
+	jr .sg_next                 ; 272F
+
+fs_row:
+	defb 0
+fs_cgahi:
+	defb 0
+fs_sp:
+	defw 0
+full_cur:
+	defb 1                      ; SAPI: compare the whole screen (this frame,
+full_prev:
+	defb 1                      ; the previous one)
+pv_sp:
+	defw 0
 
 ; ---- mode_patch @ 2712
 ; SELF-MODIFIED: 00 00 (nop nop) = title mode, 18 09 (jr +9) = game mode.
-mode_patch:
-	nop                         ; 2712
-	nop                         ; 2713
-	cp 05ah                     ; 2714  title mode: codes < 0x5A use title_table
-	jr nc,.pvc_game             ; 2716
-	ld bc,title_idx             ; 2718  SAPI: tile numbers
-	jr .pvc_lookup              ; 271B
-.pvc_game:
-	ld bc,game_idx              ; 271D  SAPI: tile numbers
-.pvc_lookup:
-	add hl,bc                   ; 2720  SAPI: HL = tiles + 16 * tile number
-	ld l,(hl)
-	ld h,000h
-	add hl,hl
-	add hl,hl
-	add hl,hl
-	add hl,hl
-	ld bc,tiles
-	add hl,bc
-	rept 7
-	ldi                         ; SAPI: one pixel line of the cell
-	ldi
-	ld a,e                      ; next line: + LINE - 2 (C000h + 80 * n,
-	add a,LINE-2                ; the carry goes to D)
-	ld e,a
-	jr nc,$+3
-	inc d
-	endm
-	ldi
-	ldi
-	ret                         ; 272F
+; SAPI: tile_page = page of the tile address tables, title_tlo or game_tlo.
+tile_page:
+	defb high title_tlo
+
+; ---- fill_1000
+; SAPI: fills the 1000 bytes below HL with DE (PUSH, interrupts are
+; disabled).
+fill_1000:
+	ld (pv_sp),sp
+	ld sp,hl
+	ld b,125
+.f1_loop:
+	push de
+	push de
+	push de
+	push de
+	djnz .f1_loop
+	ld sp,(pv_sp)
+	ret
 
 ; ---- clear_buffers @ 2730
 ; draw_buffer <- spaces (1024), shadow_vram <- 0xFF (1024) forcing a full redraw.
+; SAPI: 1000 bytes each; the whole screen is compared in the next two frames.
 clear_buffers:
-	ld hl,draw_buffer           ; 2730
-	ld bc,00004h                ; 2733
-	ld a,020h                   ; 2736
-.clb_loop1:
-	ld (hl),a                   ; 2738
-	inc hl                      ; 2739
-	djnz .clb_loop1             ; 273A
-	dec c                       ; 273C
-	jr nz,.clb_loop1            ; 273D
-	ld hl,shadow_vram           ; 273F
-	ld a,0ffh                   ; 2742
-	ld bc,00004h                ; 2744
-.clb_loop2:
-	ld (hl),a                   ; 2747
-	inc hl                      ; 2748
-	djnz .clb_loop2             ; 2749
-	dec c                       ; 274B
-	jr nz,.clb_loop2            ; 274C
+	ld hl,draw_buffer+1000
+	ld de,02020h
+	call fill_1000
+	ld hl,shadow_vram+1000
+	ld de,0FFFFh
+	call fill_1000
+	ld a,1
+	ld (full_cur),a
 	ret                         ; 274E
 
 ; ---- draw_buffer @ 274F
 ; 40x25 logical codes, rebuilt every frame (flush_screen clears it). 1024 bytes reserved.
-draw_buffer:
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 0
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 1
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 2
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 3
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 4
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 5
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 6
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 7
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 8
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 9
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 10
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 11
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 12
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 13
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 14
-	defb 20h,20h,20h,15h,24h,16h,20h,20h,20h,15h,23h,16h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 15
-	defb 20h,20h,20h,12h,0Ch,13h,20h,20h,20h,12h,0Ch,13h,20h,53h,45h,54h,20h,42h,4Fh,4Dh,42h,20h,20h,48h,49h,40h,53h,43h,4Fh,52h,45h,20h,00h,00h,03h,07h,00h,00h,20h,20h	; row 16
-	defb 20h,20h,20h,20h,20h,20h,10h,0Ch,11h,20h,20h,20h,20h,10h,0Ch,0Ch,0Ch,0Ch,0Ch,11h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 17
-	defb 20h,20h,20h,20h,20h,20h,15h,21h,16h,20h,20h,20h,20h,15h,53h,50h,41h,43h,45h,16h,20h,20h,20h,20h,20h,20h,53h,43h,4Fh,52h,45h,20h,00h,00h,00h,00h,00h,00h,20h,20h	; row 18
-	defb 20h,20h,20h,20h,20h,20h,12h,0Ch,13h,20h,20h,20h,20h,12h,0Ch,0Ch,0Ch,0Ch,0Ch,13h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 19
-	defb 20h,20h,20h,20h,20h,20h,44h,4Fh,57h,4Eh,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 20
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 21
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,50h,55h,53h,48h,20h,53h,50h,41h,43h,45h,20h,54h,4Fh,20h,53h,54h,41h,52h,54h,20h,47h,41h,4Dh,45h,20h,20h,20h,20h,20h,20h,20h,20h	; row 22
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 23
-	defb 20h,20h,43h,4Fh,50h,59h,52h,49h,47h,48h,54h,20h,17h,43h,18h,20h,01h,09h,08h,03h,20h,20h,48h,55h,44h,53h,4Fh,4Eh,20h,53h,4Fh,46h,54h,20h,49h,4Eh,43h,19h,20h,20h	; row 24
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; padding to 1024
-
 ; ---- shadow_vram @ 2B4F
 ; Logical codes currently shown on screen (for the diff). 1024 bytes reserved.
-shadow_vram:
-	defb 2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh	; row 0
-	defb 2Eh,3Ah,33h,33h,34h,38h,33h,33h,34h,3Ah,34h,38h,35h,3Ah,33h,33h,34h,3Ah,33h,33h,2Fh,3Ah,33h,33h,34h,2Eh,2Eh,3Ah,34h,38h,35h,20h,36h,39h,20h,3Ah,34h,20h,35h,2Eh	; row 1
-	defb 2Eh,3Ah,3Ch,3Ch,2Fh,3Ah,20h,20h,35h,3Ah,3Ah,35h,35h,3Ah,3Ch,3Ch,2Fh,3Ah,3Ch,3Ch,20h,3Ah,3Ch,3Ch,2Fh,2Eh,2Eh,3Ah,3Ah,35h,35h,3Ah,3Ch,3Ch,35h,3Ah,32h,34h,35h,2Eh	; row 2
-	defb 2Eh,3Ah,20h,20h,35h,3Ah,20h,20h,35h,3Ah,20h,20h,35h,3Ah,20h,20h,35h,3Ah,20h,20h,20h,3Ah,20h,39h,20h,2Eh,2Eh,3Ah,20h,20h,35h,3Ah,20h,20h,35h,3Ah,20h,32h,35h,2Eh	; row 3
-	defb 2Eh,32h,33h,33h,20h,20h,33h,33h,20h,32h,20h,20h,2Fh,32h,33h,33h,20h,32h,33h,33h,2Fh,32h,20h,20h,2Fh,2Eh,2Eh,32h,20h,20h,2Fh,32h,20h,20h,2Fh,32h,20h,20h,2Fh,2Eh	; row 4
-	defb 2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh,2Eh	; row 5
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 6
-	defb 20h,20h,8Ch,8Dh,42h,4Fh,4Dh,42h,45h,52h,20h,0C0h,0C1h,02h,30h,30h,40h,20h,20h,0C4h,0C5h,01h,05h,30h,40h,20h,0C8h,0C9h,01h,30h,30h,40h,20h,20h,0CCh,0CDh,05h,30h,40h,20h	; row 7
-	defb 20h,20h,9Ch,9Dh,20h,4Dh,41h,4Eh,20h,20h,20h,0D0h,0D1h,20h,01h,06h,30h,20h,20h,0D4h,0D5h,01h,01h,30h,20h,20h,0D8h,0D9h,20h,06h,30h,20h,20h,20h,0DCh,0DDh,01h,30h,20h,20h	; row 8
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 9
-	defb 20h,20h,20h,20h,20h,20h,55h,50h,20h,20h,20h,20h,20h,20h,20h,20h,42h,4Fh,4Eh,55h,53h,20h,20h,20h,45h,58h,49h,54h,20h,20h,20h,42h,4Fh,4Dh,42h,20h,20h,20h,20h,20h	; row 10
-	defb 20h,20h,20h,20h,20h,20h,10h,0Ch,11h,20h,20h,20h,20h,20h,20h,20h,20h,0Ah,0Bh,20h,20h,20h,20h,20h,20h,0Eh,0Fh,20h,20h,20h,20h,20h,62h,63h,20h,20h,20h,20h,20h,20h	; row 11
-	defb 20h,20h,20h,20h,20h,20h,15h,22h,16h,20h,20h,20h,20h,20h,20h,20h,20h,1Ah,1Bh,20h,20h,20h,20h,20h,20h,1Eh,1Fh,20h,20h,20h,20h,20h,72h,73h,20h,20h,20h,20h,20h,20h	; row 12
-	defb 20h,20h,4Ch,45h,46h,54h,12h,0Ch,13h,52h,49h,47h,48h,54h,20h,20h,31h,20h,50h,54h,53h,20h,20h,4Eh,4Fh,20h,50h,54h,53h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 13
-	defb 20h,20h,20h,10h,0Ch,11h,20h,20h,20h,10h,0Ch,11h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 14
-	defb 20h,20h,20h,15h,24h,16h,20h,20h,20h,15h,23h,16h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 15
-	defb 20h,20h,20h,12h,0Ch,13h,20h,20h,20h,12h,0Ch,13h,20h,53h,45h,54h,20h,42h,4Fh,4Dh,42h,20h,20h,48h,49h,40h,53h,43h,4Fh,52h,45h,20h,00h,00h,03h,07h,00h,00h,20h,20h	; row 16
-	defb 20h,20h,20h,20h,20h,20h,10h,0Ch,11h,20h,20h,20h,20h,10h,0Ch,0Ch,0Ch,0Ch,0Ch,11h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 17
-	defb 20h,20h,20h,20h,20h,20h,15h,21h,16h,20h,20h,20h,20h,15h,53h,50h,41h,43h,45h,16h,20h,20h,20h,20h,20h,20h,53h,43h,4Fh,52h,45h,20h,00h,00h,00h,00h,00h,00h,20h,20h	; row 18
-	defb 20h,20h,20h,20h,20h,20h,12h,0Ch,13h,20h,20h,20h,20h,12h,0Ch,0Ch,0Ch,0Ch,0Ch,13h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 19
-	defb 20h,20h,20h,20h,20h,20h,44h,4Fh,57h,4Eh,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 20
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 21
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,50h,55h,53h,48h,20h,53h,50h,41h,43h,45h,20h,54h,4Fh,20h,53h,54h,41h,52h,54h,20h,47h,41h,4Dh,45h,20h,20h,20h,20h,20h,20h,20h,20h	; row 22
-	defb 20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h,20h	; row 23
-	defb 20h,20h,43h,4Fh,50h,59h,52h,49h,47h,48h,54h,20h,17h,43h,18h,20h,01h,09h,08h,03h,20h,20h,48h,55h,44h,53h,4Fh,4Eh,20h,53h,4Fh,46h,54h,20h,49h,4Eh,43h,19h,20h,20h	; row 24
-	defb 0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh,0FFh	; padding to 1024
+; SAPI: both are at the end (equ), the RAM snapshots are left out.
 
 ; SAPI: the MZ tables stay as the source of sapi/tables.asm
 ; (tools/make_tables.py), the game does not read them.
@@ -2747,3 +2940,10 @@ program_end:
 	include "tables.asm"
 	defs 256
 stack_top:
+
+; SAPI: the buffers, 4 KB aligned after the program (not in the .COM file):
+; shadow_vram = draw_buffer | 0400h, map_layer = draw_buffer | 0800h.
+; They must stay below the CGA at C000h.
+draw_buffer:	equ (stack_top + 0FFFh) & 0F000h
+shadow_vram:	equ draw_buffer + 0400h
+map_layer:	equ draw_buffer + 0800h

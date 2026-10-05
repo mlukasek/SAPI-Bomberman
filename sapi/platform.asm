@@ -116,6 +116,8 @@ plat_init:
 	call ym_write
 	jr .pi_ym
 .pi_end:
+	ld a,002h                   ; keyboard ACK off, buzzer off
+	out (KSTB),a
 	xor a
 	ld (key_code),a
 	ld (key_left),a
@@ -276,10 +278,181 @@ MSTP:
 RATIO:
 	defw 0
 
+; ---- tone_start
+; The beep of the game: the tone RATIO for C units. Returns at once,
+; tone_poll stops the tone. A beep during a tone waits in tone_queue and
+; follows it (the MZ played them one after another and waited). Keeps all
+; registers except AF.
+tone_start:
+	push hl
+	push de
+	ld a,(tone_on)
+	or a
+	jr nz,.ts_queue
+	ld a,c
+	call tone_play
+	call ctr2_read
+	ld (tone_last),hl
+	ld a,1
+	ld (tone_on),a
+	jr .ts_end
+.ts_queue:
+	ld a,(tq_count)
+	cp TQ_SIZE
+	jr nc,.ts_end               ; full: left out
+	ld hl,tq_count
+	inc (hl)
+	ld hl,tq_in
+	ld a,(hl)
+	ld e,a
+	add a,3                     ; 3 bytes per beep: RATIO, C
+	cp TQ_SIZE*3
+	jr c,.ts_in
+	xor a
+.ts_in:
+	ld (hl),a
+	ld d,0
+	ld hl,tone_queue
+	add hl,de
+	ld de,(RATIO)
+	ld (hl),e
+	inc hl
+	ld (hl),d
+	inc hl
+	ld (hl),c
+.ts_end:
+	pop de
+	pop hl
+	ret
+
+; ---- tone_play
+; Start the tone RATIO for A units: tone_left += A * UNIT_DIV ticks of
+; counter 2 (tone_left <= 0 before: the late end of the previous tone is
+; taken off). Changes AF, DE, HL.
+tone_play:
+	ld l,a
+	call MSTA                   ; keeps HL
+	ld h,0                      ; HL = A * 53 (110101b)
+	ld d,h
+	ld e,l
+	add hl,hl
+	add hl,de                   ; 3A
+	add hl,hl
+	add hl,hl
+	add hl,de                   ; 13A
+	add hl,hl
+	add hl,hl
+	add hl,de                   ; 53A
+	ld de,(tone_left)
+	add hl,de
+	ld (tone_left),hl
+	ret
+
+; ---- tone_poll
+; Stop the tone when its time is over, or go on with the next beep of
+; tone_queue. Keeps all registers except AF.
+tone_poll:
+	ld a,(tone_on)
+	or a
+	ret z
+	push hl
+	push de
+	call ctr2_read              ; counter 2 counts FRAME_DIV..1, again and
+	ex de,hl                    ; again; DE = now
+	ld hl,(tone_last)
+	ld (tone_last),de
+	or a
+	sbc hl,de                   ; ticks since the last poll
+	jr nc,.tp_pos
+	ld de,FRAME_DIV
+	add hl,de
+.tp_pos:
+	ex de,hl
+	ld hl,(tone_left)
+	or a
+	sbc hl,de
+	ld (tone_left),hl
+	jr c,.tp_over
+	jr z,.tp_over
+.tp_end:
+	pop de
+	pop hl
+	ret
+.tp_over:
+	ld a,(tq_count)
+	or a
+	jr z,.tp_stop
+	dec a
+	ld (tq_count),a
+	ld hl,tq_out
+	ld a,(hl)
+	ld e,a
+	add a,3
+	cp TQ_SIZE*3
+	jr c,.tp_out
+	xor a
+.tp_out:
+	ld (hl),a
+	ld d,0
+	ld hl,tone_queue
+	add hl,de
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	inc hl
+	ld (RATIO),de
+	ld a,(hl)
+	call tone_play
+	ld hl,(tone_left)           ; still over (a late poll)?
+	bit 7,h
+	jr nz,.tp_over
+	ld a,h
+	or l
+	jr z,.tp_over
+	jr .tp_end
+.tp_stop:
+	xor a
+	ld (tone_on),a
+	ld h,a
+	ld l,a
+	ld (tone_left),hl
+	call MSTP
+	jr .tp_end
+
+; ---- ctr2_read
+; HL = counter 2 of the 82C54 (latched).
+ctr2_read:
+	ld a,080h                   ; counter 2, latch
+	out (PITCW),a
+	in a,(PIT2)
+	ld l,a
+	in a,(PIT2)
+	ld h,a
+	ret
+
+TQ_SIZE:	equ 8
+
+tone_on:
+	defb 0
+tone_left:
+	defw 0                      ; ticks of counter 2 (17.9 us)
+tone_last:
+	defw 0
+tq_count:
+	defb 0                      ; beeps in tone_queue
+tq_in:
+	defb 0                      ; offset of the next free entry
+tq_out:
+	defb 0                      ; offset of the first beep
+tone_queue:
+	defs TQ_SIZE*3              ; RATIO, units
+
 ; ---- wait_units
-; Wait C units (0.95 ms each, C = 0 means 256), polling the keyboard.
+; Wait C units (0.95 ms each, C = 0 means 256), polling the keyboard and
+; the tone.
 wait_units:
 	call poll_key
+	call tone_poll
 	in a,(MSTATUS)              ; wait for OUT0 low
 	and 008h
 	jr nz,wait_units
@@ -293,10 +466,11 @@ wait_units:
 	ret
 
 ; ---- frame_wait
-; Wait for the 60.8 ms frame tick (F2), polling the keyboard; then
-; age the held key.
+; Wait for the 60.8 ms frame tick (F2), polling the keyboard and the tone;
+; then age the held key.
 frame_wait:
 	call poll_key
+	call tone_poll
 	in a,(MSTATUS)
 	rlca                        ; CY = F2
 	jr nc,frame_wait
@@ -310,41 +484,62 @@ frame_wait:
 	ret
 
 ; ---- poll_key
-; Catch a Consul key press (STROBE is a 1 ms pulse, not latched). A
-; cursor key starts a move for key_dir, any other code counts as held
-; for KEY_HOLD frames. ESC or BREAK ends the game.
+; Catch a key press: STROBE (P0-IN0 = 0), the code (P1, inverted), ACK
+; (P0-OUT0 = 1) until STROBE is inactive, ACK off (as MikroMon). Consul
+; 262.3 sends STROBE as a 1 ms pulse and ignores ACK, EKL-1 holds STROBE
+; until ACK (without ACK it waits for ever). A cursor key starts a move
+; for key_dir, any other code counts as held for KEY_HOLD frames. ESC or
+; BREAK ends the game.
 poll_key:
 	in a,(KSTB)
 	rrca
 	ret c                       ; STROBE inactive
+	push bc
 	in a,(KDATA)
 	cpl
+	ld c,a                      ; C = code
+	ld a,003h                   ; ACK (P0-OUT1 = 1: buzzer off)
+	out (KSTB),a
+	ld b,0                      ; STROBE inactive, at most 256 reads (2-5 ms)
+.pk_strobe:
+	in a,(KSTB)
+	rrca
+	jr c,.pk_ack
+	djnz .pk_strobe
+.pk_ack:
+	ld a,002h                   ; ACK off
+	out (KSTB),a
+	ld a,c
 	cp 01Bh                     ; ESC
 	jp z,plat_exit
 	and 0FEh
 	cp 084h                     ; BREAK (84h, 85h)
 	jp z,plat_exit
-	in a,(KDATA)
-	cpl
-	cp 0C1h                     ; C1 up, C2 down, C3 right, C4 left
-	jr c,.pk_other
-	cp 0C5h
-	jr nc,.pk_other
 	push hl
 	push de
-	sub 0C1h
-	ld l,a
-	ld h,0
-	ld de,.pk_map
+	ld hl,.pk_keys              ; cursor keys: Consul C1-C4, EKL-1 WordStar
+	ld a,c
+	ld b,8
+.pk_find:
+	cp (hl)
+	jr z,.pk_cursor
+	inc hl
+	djnz .pk_find
+	ld (key_code),a             ; another key: held for KEY_HOLD frames
+	ld a,KEY_HOLD
+	ld (key_left),a
+	jr .pk_done
+.pk_cursor:
+	ld de,8
 	add hl,de
-	ld a,(hl)
+	ld a,(hl)                   ; MZ code
 	ld hl,kdir_code
 	cp (hl)
 	jr nz,.pk_new
 	inc hl                      ; the same key while it moves: one more
-	ld a,(hl)                   ; cell after this one
-	or a                        ; (not while the first step is not taken:
-	jr nz,.pk_done              ; the 1 ms STROBE pulse is read many times)
+	ld a,(hl)                   ; cell after this one (not while the first
+	or a                        ; step is not taken)
+	jr nz,.pk_done
 	ld a,1
 	ld (kdir_more),a
 	jr .pk_done
@@ -359,14 +554,13 @@ poll_key:
 .pk_done:
 	pop de
 	pop hl
+	pop bc
 	ret
-.pk_other:
-	ld (key_code),a
-	ld a,KEY_HOLD
-	ld (key_left),a
-	ret
-.pk_map:
+.pk_keys:
+	defb 0C1h,0C2h,0C3h,0C4h    ; Consul: up, down, right, left
+	defb 005h,018h,004h,013h    ; EKL-1 (WordStar): up, down, right, left
 	defb 012h,011h,013h,014h    ; MZ codes: up, down, right, left
+	defb 012h,011h,013h,014h
 
 key_code:
 	defb 0
@@ -383,17 +577,29 @@ kdir_more:
 
 ; ---- key_fire
 ; A = 20h (MZ space) when the joystick fire or the space key is held,
-; else 0. Replaces GETKY where the game asks for SPACE.
+; else 0. Replaces GETKY where the game asks for SPACE. After fire_lock
+; is set (the start of the game) it gives 0 until fire and space are
+; released, so the press that started the game does not lay a bomb.
 key_fire:
 	in a,(JOY)
 	and 010h
-	ld a,020h
-	ret z
+	jr z,.kf_held
 	call held_key
 	cp 020h
+	jr z,.kf_held
+	xor a                       ; released
+	ld (fire_lock),a
+	ret
+.kf_held:
+	ld a,(fire_lock)
+	or a
+	ld a,020h
 	ret z
 	xor a
 	ret
+
+fire_lock:
+	defb 0
 
 ; ---- key_dir
 ; A = MZ cursor code (11h down, 12h up, 13h right, 14h left) from the
