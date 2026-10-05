@@ -240,9 +240,10 @@ v každém snímku, `death` každých 5. Všechny obrazovky jsou bajt po bajtu s
 stejný.
 
 **Pasti (2026-10-05):**
-- **pasmo čte `-1*40+1` jako −(1·40+1).** Unární minus platí pro celý výraz. Takhle vznikla chyba pravého
-  sloupce horního ramene výbuchu, kterou našlo až porovnání každého snímku. Záporné konstanty psát jako
-  hotová čísla nebo `0-40+1`.
+- **Unární minus v pasmo na začátku výrazu neguje celý zbytek výrazu:** `-1*40+1` = −41, `-1+2` = −3.
+  Takhle vznikla chyba pravého sloupce horního ramene výbuchu, kterou našlo až porovnání každého snímku.
+  Správně `(-1)*40+1`, `0-1*40+1` nebo hotové číslo. Za operátorem (`2*-3`) se unární minus nepřeloží.
+  Další pasti pasmo jsou v `..\SAPIemu\CLAUDE.md`.
 - **MCP `read_memory` vrací nejvýš 4096 bajtů.** Při větší délce vrátí chybový text, ne data. `emu.read` čte po
   4 KB a délku kontroluje. První porovnání obrazovek kvůli tomu porovnávalo jen chybové hlášky.
 - **`cycles` v MCP počítá takty 4 MHz** i při CPU 2 MHz (ms = cycles / 4000).

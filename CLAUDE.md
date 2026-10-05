@@ -26,9 +26,14 @@ CP/M `.COM`. Autor: Martin Lukášek (mlukasek). Komunikace s autorem **česky**
     `map_addr_w`, `mark2`, `mark_range`).
 - **Měřit v emulátoru**, nehádat: `bench.py` (práce snímku), `prof.py` (rozpad po rutinách). Cíl: snímek
   60,8 ms i při CPU 2 MHz.
-- **Pasti:** unární minus v pasmo (`-1*40+1` = −41), `read_memory` nejvýš 4096 bajtů, `cycles` v MCP počítá
-  takty 4 MHz. Podrobně v README.
-- **Git:** commit a push jen na požádání autora. Na konec commitu patří řádek Co-Authored-By.
+- **Pasti:**
+  - unární minus v pasmo neguje celý zbytek výrazu (`-1*40+1` = −41, `-1+2` = −3), další pasti pasmo jsou
+    v `..\SAPIemu\CLAUDE.md`;
+  - `read_memory` vrací nejvýš 4096 bajtů;
+  - `cycles` v MCP počítá takty 4 MHz;
+  - podrobně v README (Pasti).
+- **Git:** lokální commity průběžně, push jen na výslovné vyžádání (jako v SAPIemu). Na konec commitu patří
+  řádek Co-Authored-By.
 - **Reálný HW:** autor ho má. Otázky k ověření sbírat v README do „Nejasností k ověření na HW“.
 - **Disk C: emulátoru** (`..\SAPIemu\work\ide\sapi_hdd.img`) je mimo repo. Hru na něj nahrávat podle README
   (Spuštění) a emulátor pak vypnout přes `power off`, ne zabít.
