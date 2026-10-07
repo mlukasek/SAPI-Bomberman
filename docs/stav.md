@@ -15,13 +15,13 @@ Předávka mezi počítači a sezeními. Nejnovější nahoře.
   - joystick, klávesnice Consul 262.3 i EKL-1;
   - ESC a BREAK zpět do CP/M;
   - při 2 MHz se vejde do snímku i v nejhorším případě (5 bomb, 55 ms z 60,8).
-- **Na skutečném HW nevyzkoušeno.** Seznam otázek: `docs/nejasnosti.md`.
+- **Ověřeno na skutečném SAPI-1 V** (autor, 2026-10-07): hra funguje. Podrobnosti, které zatím nikdo cíleně
+  neměřil, jsou v `docs/nejasnosti.md`.
 
 ## Další kroky
 
-1. **Vyzkoušet na skutečném SAPI-1** (`docs/nejasnosti.md`).
-2. **Síťová hra**, až bude síťová karta pro SAPI: `docs/sitova-hra.md`.
-3. Drobnosti, kdyby bylo potřeba ještě zrychlit:
+1. **Síťová hra**, až bude síťová karta pro SAPI: `docs/sitova-hra.md`.
+2. Drobnosti, kdyby bylo potřeba ještě zrychlit:
    - `draw_hud` jen při změně skóre a času (asi 1,8 ms za snímek);
    - předpočítané F-number místo dělení v `tone_fnum` (asi 0,5 ms na pípnutí);
    - vypršení času trvá jeden snímek 70 ms (zmizí všechny cihly, překresluje se celá obrazovka).
@@ -51,7 +51,8 @@ Předávka mezi počítači a sezeními. Nejnovější nahoře.
 - **2026-10-07, vydání 1.0.0:**
   - README pro uživatele, dokumentace do `docs/`, snímky obrazovky;
   - znakový generátor pryč z repa i historie (force push), přechod na release emulátoru;
-  - repo veřejné, GitHub Release `v1.0.0` se zipem.
+  - repo veřejné, GitHub Release `v1.0.0` se zipem;
+  - autor ověřil, že hra funguje na skutečném SAPI-1 V.
 
 ## Chyby emulátoru
 

@@ -15,7 +15,7 @@ První vydání. Bomberman z MZ-700 na SAPI-1 V (JPR-1V, RAM-1V, CGA-1V, MPH-1V)
   - klávesnice Consul 262.3 (i bez úpravy 7474) a EKL-1: šipkou jedno políčko na stisk, mezerník bomba;
   - ESC nebo BREAK vrátí do CP/M;
   - stisk, kterým se spustí hra, bombu nepoloží.
-- Vyzkoušeno v SAPIemu 0.3.0 alpha, na skutečném SAPI-1 zatím ne.
+- Ověřeno na skutečném SAPI-1 V (autor, 2026-10-07) a v SAPIemu 0.3.0 alpha.
 
 Vývoj před vydáním (2026-10-05):
 - první hratelný převod;

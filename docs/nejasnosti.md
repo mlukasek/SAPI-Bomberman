@@ -1,9 +1,13 @@
 # Nejasnosti k ověření na skutečném HW
 
-Hra je zatím vyzkoušená jen v SAPIemu. Na skutečném SAPI-1 V ověřit:
+**Ověřeno (autor, 2026-10-07):** hra funguje na skutečném SAPI-1 V.
 
-- **Rychlost a zvuk na skutečné desce.** YM3812 má časování zápisů podle katalogu 3,3 µs po adrese a 23 µs po
-  datech, `ym_write` čeká podle toho.
+Podrobnosti, které zatím nikdo cíleně neměřil:
+
+- **Rychlost a zvuk na skutečné desce:**
+  - práce snímku proti měření v SAPIemu (`docs/technika.md`);
+  - YM3812 má časování zápisů podle katalogu 3,3 µs po adrese a 23 µs po datech, `ym_write` čeká podle
+    toho.
 - **Délka snímku 60,8 ms** je převzatá z BomberNet (`docs/port-zx-spectrum.md` tam). Na skutečném MZ-700 ji
   nikdo z nás neměřil.
 - **Klávesnice:**

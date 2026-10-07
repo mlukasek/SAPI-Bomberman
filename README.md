@@ -6,7 +6,7 @@ Lasoty s barevnou grafikou CGA-1V a zvukovou kartou MPH-1V. Běží pod CP/M jak
 
 > *English: a port of Hudson Soft's Bomberman (1983, Sharp MZ-700 version) to the Czechoslovak Tesla SAPI-1
 > computer with Libor Lasota's "V" boards: colour graphics CGA-1V, YM3812 sound and an Atari joystick on MPH-1V,
-> CP/M. Runs at 2 MHz too. Tested in the SAPIemu emulator. The documentation is in Czech.*
+> CP/M. Runs at 2 MHz too. Tested on a real SAPI-1 and in the SAPIemu emulator. The documentation is in Czech.*
 
 ![Titulní obrazovka](docs/img/title.png)
 
@@ -31,8 +31,7 @@ Sestava SAPI-1 „V“ (v emulátoru SAPIemu je to `machines/sapi1v.sapi`):
 - zvuková karta **MPH-1V** na 50h (82C54, YM3812), joystick Atari na konektoru K4 (OVL);
 - klávesnice **Consul 262.3** (i bez úpravy 7474) nebo **EKL-1**.
 
-Hra je zatím vyzkoušená jen v emulátoru [SAPIemu](https://github.com/mlukasek/SAPIemu) 0.3.0 alpha. Na skutečném
-SAPI-1 ne.
+Hra je ověřená na skutečném SAPI-1 V i v emulátoru [SAPIemu](https://github.com/mlukasek/SAPIemu) 0.3.0 alpha.
 
 ## Spuštění
 
@@ -87,7 +86,7 @@ volí v menu Stroj → Klávesnice.
 - Stav a další kroky: [docs/stav.md](docs/stav.md)
 - Rozhodnutí a jejich důvody: [docs/rozhodnuti.md](docs/rozhodnuti.md)
 - Plán síťové hry: [docs/sitova-hra.md](docs/sitova-hra.md)
-- Co ověřit na skutečném HW: [docs/nejasnosti.md](docs/nejasnosti.md)
+- Podrobnosti HW, které zatím nikdo cíleně neměřil: [docs/nejasnosti.md](docs/nejasnosti.md)
 
 Překlad: `build.cmd` (assembler pasmo 0.5.3 a Python 3) → `build\bomber.com`.
 

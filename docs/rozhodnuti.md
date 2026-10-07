@@ -35,8 +35,7 @@ Rozhodnutí autora a jejich důvody. Nové rozhodnutí dopsat sem.
 
 ## Vydání 1.0.0 (2026-10-07)
 
-- **Verze 1.0.0** (autor): hra je kompletní a hratelná. Že na skutečném HW zatím nebyla, říkají poznámky
-  k vydání.
+- **Verze 1.0.0** (autor): hra je kompletní a hratelná, autor ji ověřil na skutečném SAPI-1 V.
 - **Repo bude veřejné** (autor). Znakový generátor MZ-700 (© Sharp) z repa i z historie odstraněn
   (autor zvolil přepis historie).
   - V repu zůstávají odvozené dlaždice (`sapi/tables.asm`), stejně jako BomberNet zveřejňuje odvozené
