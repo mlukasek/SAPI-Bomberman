@@ -1,2 +1,4 @@
 build/
 __pycache__/
+# MZ-700 character ROM (Sharp), not distributed: put your own dump here to regenerate sapi/tables.asm
+orig/cgrom.bin

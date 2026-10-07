@@ -3,7 +3,8 @@
 
 Input: game_table and title_table of orig/bomber.asm (logical code -> MZ-700 display code, attribute) and the
 MZ-700 character generator orig/cgrom.bin (512 x 8 bytes, bit 0 is the leftmost pixel, attribute bit 7 selects
-the upper 256 characters).
+the upper 256 characters). The ROM is not in the repository (copyright Sharp); without it the committed
+sapi/tables.asm stays as it is.
 
 Output: sapi/tables.asm
 - tiles: 16 bytes per distinct (display code, attribute) pair, EGA mode of CGA-1V: two bytes per glyph row
@@ -18,11 +19,17 @@ The MZ attribute is foreground in bits 6-4 and background in bits 2-0 (bit 0 blu
 game only uses a black background, so the CGA attribute is the MZ foreground colour (0-7).
 """
 import os
+import sys
 
 here = os.path.dirname(os.path.abspath(__file__))
 root = os.path.join(here, '..')
 src = open(os.path.join(root, 'orig', 'bomber.asm')).read()
-cg = open(os.path.join(root, 'orig', 'cgrom.bin'), 'rb').read()
+cgrom = os.path.join(root, 'orig', 'cgrom.bin')
+if not os.path.exists(cgrom):
+    # The ROM (Sharp) is not in the repository; the committed sapi/tables.asm is used as it is.
+    print('orig/cgrom.bin not found: sapi/tables.asm left as it is')
+    sys.exit(0)
+cg = open(cgrom, 'rb').read()
 assert len(cg) == 4096
 
 
