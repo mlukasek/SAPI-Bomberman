@@ -112,7 +112,7 @@ první palbu mají až od 2. snímku.
    - nebo GitHub CLI (u autora `C:\Program Files\GitHub CLI\gh.exe`, přihlášení `gh auth login`):
      `gh release create v<verze> build\SAPI-Bomberman-<verze>.zip -t "SAPI Bomberman <verze>" -F poznamky.md`.
    - Poznámky k vydání: co je nového z `CHANGELOG.md`, obsah zipu, jak spustit, na čem je vyzkoušeno, krátce
-     anglicky.
+     anglicky. Uložit je i do `docs/vydani/<verze>.md` (vzor: `docs/vydani/1.0.0.md`).
 
 ## Pasti
 
