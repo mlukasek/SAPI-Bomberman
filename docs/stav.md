@@ -4,8 +4,8 @@ Předávka mezi počítači a sezeními. Nejnovější nahoře.
 
 ## Kde jsme (2026-10-07)
 
-- **Verze 1.0.0** připravená k vydání: `tools\release.cmd` → `build\SAPI-Bomberman-1.0.0.zip`.
-- **Repo jde na veřejnost.** Znakový generátor MZ-700 (`orig/cgrom.bin`) je odstraněný z repa i z historie
+- **Verze 1.0.0 je vydaná:** GitHub Release `v1.0.0` se zipem z `tools\release.cmd`. Repo je veřejné.
+- **Znakový generátor** MZ-700 (`orig/cgrom.bin`) je odstraněný z repa i z historie
   (`git filter-branch`, hashe commitů se změnily). Lokální kopie je ignorovaná v `orig/`, záloha je
   v `E:\SAPI_GIT\SAPI-Bomberman-private\cgrom.bin`.
 - **Emulátor:** hra se zkouší v release SAPIemu 0.3.0 alpha (`E:\SAPI_GIT\SAPIemu-release`). Vývojový SAPIemu
@@ -19,12 +19,9 @@ Předávka mezi počítači a sezeními. Nejnovější nahoře.
 
 ## Další kroky
 
-1. **Vydání 1.0.0:**
-   - přepsaná historie a tag `v1.0.0` jsou na GitHubu (force push 2026-10-07);
-   - zbývá přepnout repo na veřejné a vytvořit GitHub Release z tagu se zipem z `tools\release.cmd`.
-2. **Vyzkoušet na skutečném SAPI-1** (`docs/nejasnosti.md`).
-3. **Síťová hra**, až bude síťová karta pro SAPI: `docs/sitova-hra.md`.
-4. Drobnosti, kdyby bylo potřeba ještě zrychlit:
+1. **Vyzkoušet na skutečném SAPI-1** (`docs/nejasnosti.md`).
+2. **Síťová hra**, až bude síťová karta pro SAPI: `docs/sitova-hra.md`.
+3. Drobnosti, kdyby bylo potřeba ještě zrychlit:
    - `draw_hud` jen při změně skóre a času (asi 1,8 ms za snímek);
    - předpočítané F-number místo dělení v `tone_fnum` (asi 0,5 ms na pípnutí);
    - vypršení času trvá jeden snímek 70 ms (zmizí všechny cihly, překresluje se celá obrazovka).
@@ -51,9 +48,10 @@ Předávka mezi počítači a sezeními. Nejnovější nahoře.
   - První porovnání obrazovek bylo neplatné: `read_memory` vrací nejvýš 4096 bajtů a vracelo chybový text.
   - Opravené porovnání každého snímku našlo chybu pravého sloupce horního ramene výbuchu (pasmo: unární minus).
     Opraveno, pak všechny obrazovky shodné.
-- **2026-10-07, příprava vydání 1.0.0:**
+- **2026-10-07, vydání 1.0.0:**
   - README pro uživatele, dokumentace do `docs/`, snímky obrazovky;
-  - znakový generátor pryč z repa i historie, přechod na release emulátoru.
+  - znakový generátor pryč z repa i historie (force push), přechod na release emulátoru;
+  - repo veřejné, GitHub Release `v1.0.0` se zipem.
 
 ## Chyby emulátoru
 

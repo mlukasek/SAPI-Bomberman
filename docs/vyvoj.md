@@ -106,7 +106,13 @@ první palbu mají až od 2. snímku.
    `README.md`, `CHANGELOG.md`).
 3. Ověřit v emulátoru: nahrát `bomber.hex`, `SAVE`, spustit, zahrát. Na porovnání s předchozí verzí stačí
    `bench.py` a `compare.py`.
-4. Commit, tag `v<verze>`, push (jen na pokyn autora). Na GitHubu vytvořit Release z tagu a přiložit zip.
+4. Commit, tag `v<verze>`, push (jen na pokyn autora).
+5. GitHub Release z tagu se zipem:
+   - ručně na GitHubu (Releases → Draft a new release);
+   - nebo GitHub CLI (u autora `C:\Program Files\GitHub CLI\gh.exe`, přihlášení `gh auth login`):
+     `gh release create v<verze> build\SAPI-Bomberman-<verze>.zip -t "SAPI Bomberman <verze>" -F poznamky.md`.
+   - Poznámky k vydání: co je nového z `CHANGELOG.md`, obsah zipu, jak spustit, na čem je vyzkoušeno, krátce
+     anglicky.
 
 ## Pasti
 
