@@ -20,9 +20,8 @@ Předávka mezi počítači a sezeními. Nejnovější nahoře.
 ## Další kroky
 
 1. **Vydání 1.0.0:**
-   - zveřejnit repo;
-   - pushnout přepsanou historii (force) nebo založit nové repo, viz `docs/rozhodnuti.md`;
-   - tag `v1.0.0` a GitHub Release se zipem.
+   - přepsaná historie a tag `v1.0.0` jsou na GitHubu (force push 2026-10-07);
+   - zbývá přepnout repo na veřejné a vytvořit GitHub Release z tagu se zipem z `tools\release.cmd`.
 2. **Vyzkoušet na skutečném SAPI-1** (`docs/nejasnosti.md`).
 3. **Síťová hra**, až bude síťová karta pro SAPI: `docs/sitova-hra.md`.
 4. Drobnosti, kdyby bylo potřeba ještě zrychlit:

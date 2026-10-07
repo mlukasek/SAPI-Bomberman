@@ -42,9 +42,11 @@ Rozhodnutí autora a jejich důvody. Nové rozhodnutí dopsat sem.
   - V repu zůstávají odvozené dlaždice (`sapi/tables.asm`), stejně jako BomberNet zveřejňuje odvozené
     tabulky.
   - Páska `orig/bomber.mzf` a disassembler zůstávají, BomberNet je také zveřejňuje.
-  - **Push přepsané historie:** stará historie na GitHubu obsahuje ROM. Force push ji přepíše, ale GitHub
-    může staré commity podle hashe ještě nějakou dobu ukazovat. Bezpečnější je repo smazat a založit znovu
-    (nebo založit nové veřejné), pak teprve pushnout. Rozhodne autor.
+  - **Push přepsané historie** (autor, 2026-10-07): normální force push do stávajícího repa. Stačí, že ROM
+    není vidět v aktuálním stavu. Ve staré historii by ji našel jen ten, kdo by se v ní šťoural, a ROM
+    40 let starých počítačů jsou dostupné i jinde.
+- **Bez licence** (autor, 2026-10-07): hru má licencovanou Hudson Soft, dávat na ni GPL-3 (jako u SAPIemu) je
+  nevhodné. Soubor `LICENSE` proto v repu není.
 - **Emulátor pro hru:** release SAPIemu (`E:\SAPI_GIT\SAPIemu-release`), ne vývojový SAPIemu (autor ho vyvíjí
   paralelně).
 - **Dokumentace:** README pro uživatele, technické a vývojové informace v `docs/`. Dokumentace česky, kód
