@@ -20,8 +20,12 @@ Předávka mezi počítači a sezeními. Nejnovější nahoře.
 
 ## Další kroky
 
-1. **Síťová hra**, až bude síťová karta pro SAPI: `docs/sitova-hra.md`.
-2. Drobnosti, kdyby bylo potřeba ještě zrychlit:
+1. **Vydat opravu šipek** (verze 1.0.1?), až rozhodne autor: `CHANGELOG.md`, `tools\release.cmd`.
+2. **Síťová hra**, až bude síťová karta pro SAPI: `docs/sitova-hra.md`.
+3. **Zatočení z půlky políčka**, kam hráče nechá joystick: kolmá šipka nepomůže (pilíř), šipka ve stejné ose
+   hráče dorovná. Tak to bylo vždy. Kdyby to vadilo, kolmá šipka by mohla nejdřív dorovnat políčko. Směr
+   dorovnání ale není jasný, port nezná směr posledního pohybu joystickem.
+4. Drobnosti, kdyby bylo potřeba ještě zrychlit:
    - `draw_hud` jen při změně skóre a času (asi 1,8 ms za snímek);
    - předpočítané F-number místo dělení v `tone_fnum` (asi 0,5 ms na pípnutí);
    - vypršení času trvá jeden snímek 70 ms (zmizí všechny cihly, překresluje se celá obrazovka).
@@ -53,6 +57,13 @@ Předávka mezi počítači a sezeními. Nejnovější nahoře.
   - znakový generátor pryč z repa i historie (force push), přechod na release emulátoru;
   - repo veřejné, GitHub Release `v1.0.0` se zipem;
   - autor ověřil, že hra funguje na skutečném SAPI-1 V.
+- **2026-10-16, šipky v půlce políčka** (předávka ze SAPI-BomberNet, `docs/predavka-klavesnice.md`):
+  - jiná šipka během kroku přepsala rozdělané políčko a hráč zůstal v půlce a špatně zatáčel;
+  - chyba prokázaná testem `tools/emu/taps.py --fast`: 7 půlek ze 112 kontrol;
+  - oprava: nová šipka počká v `kdir_next` na celé políčko; po ní 0 půlek, Consul i EKL-1;
+  - herní logika beze změny: 494 snímků scénářů a 60 obrazovek klávesnice shodných se starou verzí;
+  - joystick na titulku ověřený: palba spustí hru, držená palba bombu nepoloží.
+  - Nevydáno: verze 1.0.0 v Releases opravu nemá.
 
 ## Chyby emulátoru
 

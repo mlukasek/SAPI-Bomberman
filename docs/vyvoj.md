@@ -69,6 +69,7 @@ disassembler z BomberNet (commit c88818d).
 | `compare.py DIR1 DIR2` | porovná výpisy CGA dvou běhů |
 | `prof.py FRAME...` | čas jednotlivých volání `main_loop` ve zvolených snímcích |
 | `audio.py record OUT.wav`, `audio.py tones A.wav B.wav` | nahraje zvuk scénáře a vypíše tóny (délka @ kmitočet) |
+| `taps.py` | ťukání šipkami v náhodných okamžicích, po pauze musí hráč stát na celém políčku; `--fast` = zatáčení během kroku, `--seed` stejná série pro dvě verze, `--keyboard EKL-1`, `--dump DIR` obrazovka při každé kontrole |
 | `shots.py [DIR]` | snímky obrazovky pro README (`docs/img`) |
 | `sapimcp.py TOOL '{json}'` | jedno volání MCP z příkazové řádky |
 | `emu.py` | společné: symboly z `build\bomber.sym`, scénáře, checkpoint |
@@ -86,7 +87,9 @@ Herní logika se nesmí změnit (hra čte `draw_buffer`). Každou změnu porovna
    `python bench.py --every 1 --dump B`.
 3. `python compare.py A B`, pak totéž pro `--scen chain`, `--scen death` a `--time 30`.
 4. Zvuk: `python audio.py record` pro obě verze, pak `python audio.py tones`.
-5. Úklid: `git worktree remove ..\bomber-old`.
+5. Změna klávesnice: scénáře hrají joystickem. Pro klávesnici je `python taps.py --dump A --root ...`
+   a `python taps.py --dump B` se stejným `--seed`, pak `compare.py`.
+6. Úklid: `git worktree remove ..\bomber-old`.
 
 Proč to funguje:
 - Skripty dělají náhodu pevnou: `LD A,R` v `random` → `XOR A`, jinak náhoda závisí na počtu provedených instrukcí.
@@ -95,6 +98,11 @@ Proč to funguje:
 
 2026-10-05 ověřeno takto proti 63779ea: `walk` (160 snímků), `chain` (60) a vypršení času (120) v každém
 snímku, `death` každých 5. Všechny obrazovky jsou bajt po bajtu stejné a sled tónů je stejný.
+
+2026-10-16 (šipky, `kdir_next`) proti 88049c5:
+- `walk`, `chain`, `death` a vypršení času v každém snímku: 494 obrazovek shodných, čas snímku stejný;
+- `taps.py` bez `--fast` (60 ťuknutí): 60 obrazovek shodných;
+- `taps.py --fast` (seed 1–3, Consul i EKL-1): stará verze 7 a 3 půlky, nová 0.
 
 Pozor na zámek palby po startu: palba v prvním snímku po startu se ignoruje (`fire_lock`). Scénáře proto
 první palbu mají až od 2. snímku.

@@ -80,6 +80,13 @@ Ostatní karty sestavy V: DSM-1V 10h a 14h, IDE-1 58h a 5Ch, ZRD-1V 60h (podle `
   - Na celém políčku je souřadnice v ose pohybu lichá, takže jeden stisk = jedno políčko.
   - Stojí-li hráč v půlce políčka (po joysticku), stisk ho dorovná.
   - Stisk téže šipky během pohybu přidá jedno políčko, takže autorepeat dává plynulý pohyb.
+  - **Jiná šipka během pohybu** počká v `kdir_next`, je-li hráč v ose pohybu v půlce políčka. Začne, až
+    dojde na celé políčko (`key_dir`, `.kd_stop`). Na celém políčku začne hned.
+    - Do 2026-10-16 nový směr rozdělané políčko přepsal. Hráč zůstal v ose v půlce a kolmo pak narážel na
+      pilíř, takže se špatně zatáčelo.
+    - Prokázáno a ověřeno testem `tools/emu/taps.py --fast`: 7 půlek ze 112 kontrol před opravou, 0 po ní.
+  - Kolmá šipka z půlky políčka (kam hráče nechá joystick) nepomůže: kolmo se z půlky nedá jít (pilíř). Tak
+    to bylo vždy. Šipka ve stejné ose hráče dorovná.
   - Dřív se i šipka brala jako držená 4 snímky. Když přišel další stisk dřív, než doběhly (rychlé ťukání,
     autorepeat), mohl hráč zůstat v půlce políčka a nemohl zatočit.
 - **Mezerník** se bere jako držený 4 snímky (`KEY_HOLD`). Po startu hry z titulku (`title_start`, `fire_lock`)

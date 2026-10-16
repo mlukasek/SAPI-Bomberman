@@ -56,7 +56,7 @@ volí v menu Stroj → Klávesnice.
 | konec, návrat do CP/M | | ESC nebo BREAK | ESC |
 
 - Šipkou jeden stisk = jedno políčko. Stisk téže šipky během pohybu přidá další políčko, takže držená šipka
-  (autorepeat) dává plynulý pohyb.
+  (autorepeat) dává plynulý pohyb. Šipka jiného směru během kroku se provede, až hráč dojde na políčko.
 - Palba nebo mezerník, kterými se hra spustí, bombu nepoloží. Další stisk už ano.
 - S joystickem jde chodit a pokládat bomby zároveň.
 

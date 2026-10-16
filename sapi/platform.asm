@@ -124,6 +124,7 @@ plat_init:
 	ld (kdir_code),a
 	ld (kdir_fresh),a
 	ld (kdir_more),a
+	ld (kdir_next),a
 	ret
 
 ; YM3812 channel 0: modulator (slot 0) with feedback for a buzzy tone,
@@ -488,8 +489,9 @@ frame_wait:
 ; (P0-OUT0 = 1) until STROBE is inactive, ACK off (as MikroMon). Consul
 ; 262.3 sends STROBE as a 1 ms pulse and ignores ACK, EKL-1 holds STROBE
 ; until ACK (without ACK it waits for ever). A cursor key starts a move
-; for key_dir, any other code counts as held for KEY_HOLD frames. ESC or
-; BREAK ends the game.
+; for key_dir (another one during a move half way waits in kdir_next),
+; any other code counts as held for KEY_HOLD frames. ESC or BREAK ends
+; the game.
 poll_key:
 	in a,(KSTB)
 	rrca
@@ -535,7 +537,7 @@ poll_key:
 	ld a,(hl)                   ; MZ code
 	ld hl,kdir_code
 	cp (hl)
-	jr nz,.pk_new
+	jr nz,.pk_other
 	inc hl                      ; the same key while it moves: one more
 	ld a,(hl)                   ; cell after this one (not while the first
 	or a                        ; step is not taken)
@@ -543,12 +545,25 @@ poll_key:
 	ld a,1
 	ld (kdir_more),a
 	jr .pk_done
+.pk_other:
+	ld c,a                      ; another cursor key: while a move is half
+	ld a,(hl)                   ; way on its axis it waits in kdir_next for
+	or a                        ; the whole cell (else the player stays half
+	jr z,.pk_now                ; way, and cannot turn there); on a whole
+	call kdir_half              ; cell it starts now
+	jr nz,.pk_now
+	ld a,c
+	ld (kdir_next),a
+	jr .pk_done
+.pk_now:
+	ld a,c
 .pk_new:
 	ld (hl),a                   ; kdir_code
 	ld a,1
 	ld (kdir_fresh),a
 	xor a
 	ld (kdir_more),a
+	ld (kdir_next),a
 	ld a,2
 	ld (kdir_cont),a
 .pk_done:
@@ -574,6 +589,20 @@ kdir_cont:
 	defb 0                      ; steps left to finish the cell
 kdir_more:
 	defb 0                      ; 1 = pressed again: one more cell
+kdir_next:
+	defb 0                      ; another cursor key half way: after the cell
+
+; ---- kdir_half
+; Z = the player is half way on the axis of the move A (MZ cursor code):
+; its coordinate there is even (a whole cell is odd). Changes AF.
+kdir_half:
+	cp 013h
+	ld a,(player_y)             ; down, up: Y
+	jr c,.kh_axis
+	ld a,(player_x)             ; right, left: X
+.kh_axis:
+	and 1
+	ret
 
 ; ---- key_fire
 ; A = 20h (MZ space) when the joystick fire or the space key is held,
@@ -603,8 +632,9 @@ fire_lock:
 
 ; ---- key_dir
 ; A = MZ cursor code (11h down, 12h up, 13h right, 14h left) from the
-; joystick or the Consul cursor keys, else 0. Replaces GETKY in
-; move_player.
+; joystick or the cursor keys, else 0. Replaces GETKY in move_player. A
+; cursor key moves the player to the next whole cell; another cursor key
+; pressed half way (kdir_next) starts on the whole cell.
 key_dir:
 	in a,(JOY)
 	rrca
@@ -659,8 +689,18 @@ key_dir:
 	pop hl
 	ret
 .kd_stop:
-	xor a
+	ld hl,kdir_next             ; on a whole cell: a cursor key that came
+	ld a,(hl)                   ; half way starts now
+	ld (hl),0
 	ld (kdir_code),a
+	or a
+	jr z,.kd_end
+	xor a
+	ld (kdir_fresh),a           ; its first step is this one
+	ld (kdir_more),a
+	ld a,2
+	ld (kdir_cont),a
+	jr .kd_go
 .kd_end:
 	pop hl
 	xor a

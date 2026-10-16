@@ -1,5 +1,12 @@
 # Změny
 
+## Nevydáno
+
+- **Šipky z klávesnice** už nenechávají hráče v půlce políčka.
+  - Šipka jiného směru během kroku počká, až hráč dojde na celé políčko. Dřív rozdělaný krok zahodila, hráč
+    zůstal v půlce a pak se špatně zatáčelo.
+  - Platí pro Consul 262.3 i EKL-1, hra jinak beze změny.
+
 ## 1.0.0 (2026-10-07)
 
 První vydání. Bomberman z MZ-700 na SAPI-1 V (JPR-1V, RAM-1V, CGA-1V, MPH-1V) jako `BOMBER.COM` pro CP/M.

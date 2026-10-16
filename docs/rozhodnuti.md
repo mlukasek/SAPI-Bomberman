@@ -24,6 +24,9 @@ Rozhodnutí autora a jejich důvody. Nové rozhodnutí dopsat sem.
   4 snímky“ nechávala hráče v půlce políčka.
 - **Klávesnice potvrzuje ACK jako MikroMon** (2026-10-05). Funguje tak Consul 262.3 bez 7474 i EKL-1.
 - **Stisk, který spustí hru, nepoloží bombu** (autor, 2026-10-05).
+- **Jiná šipka v půlce políčka počká, až se políčko dojde** (autor, 2026-10-16). Stejně jako v C verzi
+  SAPI-BomberNet. Hráč z klávesnice nikdy nezůstane v půlce. Obrátit směr v půlce políčka proto nejde, hráč
+  nejdřív dojde na celé políčko.
 
 ## Zvuk
 
