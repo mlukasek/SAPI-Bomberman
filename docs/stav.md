@@ -67,4 +67,13 @@ Předávka mezi počítači a sezeními. Nejnovější nahoře.
 
 ## Chyby emulátoru
 
-Zatím žádná. Poznatky k MCP jsou v `docs/vyvoj.md` (Pasti).
+Poznatky k MCP jsou v `docs/vyvoj.md` (Pasti).
+
+- **SAPIemu 0.3.0 alpha, `sapi1v.sapi`, boot volbou 1 visí** (zjištěno 2026-10-16, nahlášeno autorovi).
+  - Výpis se zastaví na „LST: CENTRONIX“ a BIOS stojí na E6F0–E6F4 ve smyčce `IN A,(3Ch)` / `AND 40h` /
+    `JP Z`: čeká na bit 6 řadiče disket RPD-1 („B,C: RPD1“). Ten v sestavě V není.
+  - `io_read` portu 3Ch přes MCP přitom vrací E6h (bit 6 nastavený).
+  - Volba 3 (A: stejný RAM disk, B:, C: IDE) bootuje normálně.
+  - Vývojový SAPIemu 2026-10-05 volbu 1 nabootoval. Hru se to netýká.
+  - Skripty `tools/emu` teď bootují volbou 3 a výsledek kontrolují. Dřív bootovaly volbou 1 bez kontroly, měření
+    to ale neovlivnilo: hru nahrávají rovnou na 0100h a CP/M nepotřebují.

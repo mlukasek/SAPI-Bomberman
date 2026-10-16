@@ -36,8 +36,8 @@ Hra je ověřená na skutečném SAPI-1 V i v emulátoru [SAPIemu](https://githu
 ## Spuštění
 
 **V SAPIemu:**
-1. Otevřít sestavu `sapi1v.sapi` a při startu zvolit `1` (CP/M z RAM disku A:) nebo `3` (i s IDE diskem
-   B:, C:).
+1. Otevřít sestavu `sapi1v.sapi` a při startu zvolit `3` (CP/M z RAM disku A: a IDE disk B:, C:). Volba `1`
+   se v SAPIemu 0.3.0 alpha zasekne při hledání řadiče disket.
 2. Na výzvu `A>` nahrát hru: Soubor → Nahrát program do paměti → `bomber.hex`.
 3. Uložit ji na disk: `SAVE 42 BOMBER.COM` (nebo `SAVE 42 C:BOMBER.COM` na IDE disk).
 4. Spustit: `BOMBER` (nebo `C:BOMBER`).

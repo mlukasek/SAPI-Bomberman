@@ -88,17 +88,23 @@ def read(addr, n):
     return out
 
 def checkpoint():
-    """Load the emulator state 'cpm' (CP/M on the A> prompt, boot choice 1); boot and save it when missing
-    (machines/sapi1v.sapi). The state is in the emulator's memory, lost when it ends."""
-    mcp.call('pause')
+    """Load the emulator state 'cpm' (CP/M on the A> prompt, boot choice 3); boot and save it when missing
+    (machines/sapi1v.sapi). The state is in the emulator's memory, lost when it ends. Choice 1 waits for ever
+    for the RPD-1 at port 3Ch in SAPIemu 0.3.0 (docs/stav.md); choice 3 has the same RAM disk A:."""
+    try:
+        mcp.call('pause')
+    except RuntimeError:                                # switched off (power off)
+        mcp.call('power', state='on')
+        mcp.call('pause')
     try:
         mcp.call('load_state', name='cpm')
     except RuntimeError:
         mcp.call('power', state='cycle')
         mcp.call('resume')
         mcp.call('run_until', screen_text='Zadej 0-3', timeout_ms=20000)
-        mcp.call('type_text', text='1')
-        mcp.call('run_until', screen_text='A>', timeout_ms=30000)
+        mcp.call('type_text', text='3')
+        res = mcp.call('run_until', screen_text='A>', timeout_ms=30000)
+        assert res.get('stopped') != 'timeout', ('CP/M did not start', res['registers']['pc'])
         mcp.call('pause')
         mcp.call('save_state', name='cpm')
     mcp.call('pause')

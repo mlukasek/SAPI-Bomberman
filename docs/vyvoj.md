@@ -44,13 +44,18 @@ disassembler z BomberNet (commit c88818d).
   - Skripty v `tools/emu` čekají MCP na portu 8591, jiný port nebo GUI: proměnná `SAPIEMU_MCP`.
   - Ukončit přes MCP `power off` (pak proces zastavit). Obraz IDE disku se zapisuje přes buffer souboru,
     po zabití procesu by zápis mohl chybět.
-- **Boot sestavy V:** `1` = CP/M z RAM disku A:, `3` = i s IDE diskem B:, C: (`work\ide\sapi_hdd.img`).
-- **Hru na disk C: emulátoru:**
+- **Boot sestavy V:** `1` = CP/M z RAM disku A: (v SAPIemu 0.3.0 visí, viz `docs/stav.md`), `3` = RAM disk A:
+  i s IDE diskem B:, C: (`work\ide\sapi_hdd.img`).
+- **Hru na disk emulátoru** (A: = RAM disk ZRD-1V, pracovní kopie `work\zrmd-1\SAPI_CPM_Martin_2019-10-07.bin`;
+  C: = IDE):
   - ručně: v CP/M (boot `3`) Soubor → Nahrát program do paměti → `build\bomber.hex`, pak
-    `SAVE 42 C:BOMBER.COM`;
-  - přes MCP: `load_hex` souboru `bomber.hex`, `type_text` „`SAVE 42 C:BOMBER.COM\r`“, pak `power off`.
-  - Disk C: se repem nepřenáší, na novém PC je potřeba hru nahrát znovu. U autora je hra jako `C:BOMBER.COM`
-    na disku C: vývojového SAPIemu (`SAPIemu\work\ide\sapi_hdd.img`).
+    `SAVE 42 A:BOMBER.COM` (nebo `C:BOMBER.COM`);
+  - přes MCP: `load_hex` souboru `bomber.hex`, `type_text` „`SAVE 42 A:BOMBER.COM\r`“, pak `power off`
+    (uloží RAM disk do pracovní kopie a zavře obraz IDE).
+  - Příkazy posílat až po `A>`, jinak čekají ve frontě klávesnice a provedou se později.
+  - Disky se repem nepřenášejí, na novém PC je potřeba hru nahrát znovu.
+  - U autora je hra (2026-10-16, s opravou šipek) jako `A:BOMBER.COM` na RAM disku release SAPIemu. Starší
+    verze je jako `C:BOMBER.COM` na disku C: vývojového SAPIemu.
 - **Jen do paměti (ladění):** MCP `load_binary` souboru `bomber.com` na 0100h a `set_registers` s `pc` =
   0100h, když CP/M čeká na příkaz (tak to dělají skripty v `tools/emu`).
 - **Užitečné MCP nástroje:**
@@ -61,7 +66,7 @@ disassembler z BomberNet (commit c88818d).
 
 ## Skripty `tools/emu`
 
-Řídí emulátor přes MCP. Skript si sám nabootuje CP/M (volba 1) a uloží stav `cpm` do paměti emulátoru.
+Řídí emulátor přes MCP. Skript si sám nabootuje CP/M (volba 3) a uloží stav `cpm` do paměti emulátoru.
 
 | Skript | Co dělá |
 |---|---|
