@@ -4,7 +4,8 @@ Předávka mezi počítači a sezeními. Nejnovější nahoře.
 
 ## Kde jsme (2026-10-07)
 
-- **Verze 1.0.0 je vydaná:** GitHub Release `v1.0.0` se zipem z `tools\release.cmd`. Repo je veřejné.
+- **Vydaná verze 1.0.1** (2026-10-16, oprava šipek): GitHub Release `v1.0.1` se zipem z `tools\release.cmd`.
+  Předtím 1.0.0 (2026-10-07). Repo je veřejné.
 - **Znakový generátor** MZ-700 (`orig/cgrom.bin`) je odstraněný z repa i z historie
   (`git filter-branch`, hashe commitů se změnily). Lokální kopie je ignorovaná v `orig/`, záloha je
   v `E:\SAPI_GIT\SAPI-Bomberman-private\cgrom.bin`.
@@ -20,12 +21,11 @@ Předávka mezi počítači a sezeními. Nejnovější nahoře.
 
 ## Další kroky
 
-1. **Vydat opravu šipek** (verze 1.0.1?), až rozhodne autor: `CHANGELOG.md`, `tools\release.cmd`.
-2. **Síťová hra**, až bude síťová karta pro SAPI: `docs/sitova-hra.md`.
-3. **Zatočení z půlky políčka**, kam hráče nechá joystick: kolmá šipka nepomůže (pilíř), šipka ve stejné ose
+1. **Síťová hra**, až bude síťová karta pro SAPI: `docs/sitova-hra.md`.
+2. **Zatočení z půlky políčka**, kam hráče nechá joystick: kolmá šipka nepomůže (pilíř), šipka ve stejné ose
    hráče dorovná. Tak to bylo vždy. Kdyby to vadilo, kolmá šipka by mohla nejdřív dorovnat políčko. Směr
    dorovnání ale není jasný, port nezná směr posledního pohybu joystickem.
-4. Drobnosti, kdyby bylo potřeba ještě zrychlit:
+3. Drobnosti, kdyby bylo potřeba ještě zrychlit:
    - `draw_hud` jen při změně skóre a času (asi 1,8 ms za snímek);
    - předpočítané F-number místo dělení v `tone_fnum` (asi 0,5 ms na pípnutí);
    - vypršení času trvá jeden snímek 70 ms (zmizí všechny cihly, překresluje se celá obrazovka).
@@ -63,7 +63,11 @@ Předávka mezi počítači a sezeními. Nejnovější nahoře.
   - oprava: nová šipka počká v `kdir_next` na celé políčko; po ní 0 půlek, Consul i EKL-1;
   - herní logika beze změny: 494 snímků scénářů a 60 obrazovek klávesnice shodných se starou verzí;
   - joystick na titulku ověřený: palba spustí hru, držená palba bombu nepoloží.
-  - Nevydáno: verze 1.0.0 v Releases opravu nemá.
+- **2026-10-16, vydání 1.0.1:**
+  - oprava šipek;
+  - spuštění v SAPIemu 0.3.0 volbou 3 (volba 1 se zasekne);
+  - hra je u autora na RAM disku A: release emulátoru;
+  - poznámky k vydání 1.0.0 na GitHubu opravené na boot 3.
 
 ## Chyby emulátoru
 

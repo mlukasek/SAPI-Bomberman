@@ -2,7 +2,7 @@
 rem Release package: builds the game and makes build\SAPI-Bomberman-<VERSION>.zip
 rem (BOMBER.COM, bomber.hex, README.md, CHANGELOG.md). The version is also in CHANGELOG.md.
 setlocal
-set VERSION=1.0.0
+set VERSION=1.0.1
 cd /d "%~dp0.."
 call "%~dp0..\build.cmd" || exit /b 1
 set PKG=build\SAPI-Bomberman-%VERSION%

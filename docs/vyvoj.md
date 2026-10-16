@@ -28,7 +28,7 @@ Složky vedle sebe (u autora `E:\SAPI_GIT\`):
 `build.cmd`:
 1. `tools\make_tables.py` → `sapi\tables.asm` (jen když je `orig\cgrom.bin`);
 2. pasmo → `build\bomber.com`, `build\bomber.hex` (Intel HEX od 0100h) a `build\bomber.sym`;
-3. na konci vypíše velikost a počet stránek pro `SAVE` (verze 1.0.0: 10 608 bajtů, `SAVE 42`).
+3. na konci vypíše velikost a počet stránek pro `SAVE` (verze 1.0.1: 10 608 bajtů, `SAVE 42`).
 
 Složka `build\` je v `.gitignore`.
 
@@ -125,7 +125,7 @@ první palbu mají až od 2. snímku.
    - nebo GitHub CLI (u autora `C:\Program Files\GitHub CLI\gh.exe`, přihlášení `gh auth login`):
      `gh release create v<verze> build\SAPI-Bomberman-<verze>.zip -t "SAPI Bomberman <verze>" -F poznamky.md`.
    - Poznámky k vydání: co je nového z `CHANGELOG.md`, obsah zipu, jak spustit, na čem je vyzkoušeno, krátce
-     anglicky. Uložit je i do `docs/vydani/<verze>.md` (vzor: `docs/vydani/1.0.0.md`).
+     anglicky. Uložit je i do `docs/vydani/<verze>.md` (vzor: `docs/vydani/1.0.1.md`).
 
 ## Pasti
 

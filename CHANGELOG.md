@@ -1,11 +1,13 @@
 # Změny
 
-## Nevydáno
+## 1.0.1 (2026-10-16)
 
 - **Šipky z klávesnice** už nenechávají hráče v půlce políčka.
   - Šipka jiného směru během kroku počká, až hráč dojde na celé políčko. Dřív rozdělaný krok zahodila, hráč
     zůstal v půlce a pak se špatně zatáčelo.
-  - Platí pro Consul 262.3 i EKL-1, hra jinak beze změny.
+  - Platí pro Consul 262.3 i EKL-1, hra jinak beze změny (ověřeno porovnáním obrazovek s 1.0.0).
+- **Spuštění v SAPIemu 0.3.0 alpha:** při startu sestavy `sapi1v.sapi` zvolit `3`. Volba `1` se v této verzi
+  emulátoru zasekne při hledání řadiče disket.
 
 ## 1.0.0 (2026-10-07)
 

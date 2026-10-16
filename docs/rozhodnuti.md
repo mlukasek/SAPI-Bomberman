@@ -53,3 +53,9 @@ Rozhodnutí autora a jejich důvody. Nové rozhodnutí dopsat sem.
   paralelně).
 - **Dokumentace:** README pro uživatele, technické a vývojové informace v `docs/`. Dokumentace česky, kód
   a komentáře anglicky.
+
+## Vydání 1.0.1 (2026-10-16)
+
+- **Verze 1.0.1** (autor): oprava šipek (jiná šipka v půlce políčka počká na celé políčko).
+- **Boot v SAPIemu volbou 3** (autor): volba 1 se v SAPIemu 0.3.0 alpha zasekne (`docs/stav.md`, Chyby
+  emulátoru). README, `CHANGELOG.md` a poznámky k vydání 1.0.0 i 1.0.1 proto radí volbu 3.

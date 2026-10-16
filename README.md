@@ -20,7 +20,7 @@ Hotová hra je v [Releases](https://github.com/mlukasek/SAPI-Bomberman/releases)
 - `BOMBER.COM` pro CP/M;
 - `bomber.hex` (Intel HEX od 0100h) pro nahrání do paměti emulátoru.
 
-Verze 1.0.0, co je nového: [CHANGELOG.md](CHANGELOG.md).
+Verze 1.0.1, co je nového: [CHANGELOG.md](CHANGELOG.md).
 
 ## Co je potřeba
 
