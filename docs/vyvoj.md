@@ -27,7 +27,8 @@ Složky vedle sebe (u autora `E:\SAPI_GIT\`):
 
 `build.cmd`:
 1. `tools\make_tables.py` → `sapi\tables.asm` (jen když je `orig\cgrom.bin`);
-2. pasmo → `build\bomber.com`, `build\bomber.hex` (Intel HEX od 0100h) a `build\bomber.sym`;
+2. pasmo → `build\bomber.com` a `build\bomber.sym`, `tools\mkhex.py` → `build\bomber.hex` (Intel HEX od 0100h,
+   startovací adresa 0100h);
 3. na konci vypíše velikost a počet stránek pro `SAVE` (verze 1.0.1: 10 608 bajtů, `SAVE 42`).
 
 Složka `build\` je v `.gitignore`.
@@ -120,7 +121,7 @@ první palbu mají až od 2. snímku.
 3. Ověřit v emulátoru: nahrát `bomber.hex`, `SAVE`, spustit, zahrát. Na porovnání s předchozí verzí stačí
    `bench.py` a `compare.py`.
 4. Commit, tag `v<verze>`, push (jen na pokyn autora).
-5. GitHub Release z tagu se zipem:
+5. GitHub Release z tagu se zipem a samostatně s `BOMBER.COM` a `bomber.hex`:
    - ručně na GitHubu (Releases → Draft a new release);
    - nebo GitHub CLI (u autora `C:\Program Files\GitHub CLI\gh.exe`, přihlášení `gh auth login`):
      `gh release create v<verze> build\SAPI-Bomberman-<verze>.zip -t "SAPI Bomberman <verze>" -F poznamky.md`.
